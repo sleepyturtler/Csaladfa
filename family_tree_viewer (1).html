@@ -1,0 +1,3093 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>A családfánk</title>
+<style>
+  :root{
+    --ink:#132821;
+    --gold:#c9a227;
+    --gold-soft:#e4c974;
+    --paper:#efe6d3;
+    --paternal:#8b2635;
+    --maternal:#1f6f6b;
+    --direct:#c9a227;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    font-family: Georgia, 'Iowan Old Style', 'Palatino Linotype', serif;
+    background: var(--ink);
+    background-image:
+      radial-gradient(circle at 20% 20%, rgba(201,162,39,0.06), transparent 40%),
+      radial-gradient(circle at 80% 70%, rgba(139,38,53,0.08), transparent 45%);
+    color: var(--paper);
+    overflow:hidden;
+    height:100vh;
+  }
+
+  header{
+    position:fixed; top:0; left:0; right:0; z-index:20;
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    padding:14px 20px;
+    background:linear-gradient(180deg, rgba(19,40,33,0.97), rgba(19,40,33,0.0));
+    flex-wrap:wrap;
+  }
+  .title{ font-size:1.25em; letter-spacing:0.03em; color:var(--gold-soft); }
+  .title small{
+    display:block; font-family:'Segoe UI', sans-serif; font-size:0.42em;
+    letter-spacing:0.14em; text-transform:uppercase; color:#a9b8ab; margin-top:3px;
+  }
+  .toolbar{ display:flex; gap:7px; flex-wrap:wrap; }
+  .toolbar button{
+    font-family:'Segoe UI', sans-serif; font-size:0.78em;
+    background: rgba(239,230,211,0.08);
+    border:1px solid rgba(228,201,116,0.35);
+    color: var(--gold-soft);
+    padding:8px 12px; border-radius:4px; cursor:pointer;
+  }
+  .toolbar button:hover{ background: rgba(228,201,116,0.15); border-color: var(--gold); }
+  .zoom-readout{ font-family:'Segoe UI', sans-serif; font-size:0.78em; color:var(--gold-soft); align-self:center; min-width:40px; text-align:center;}
+
+  #stage{ position:absolute; inset:0; cursor:grab; touch-action:none; }
+  #stage.panning{ cursor:grabbing; }
+  #canvas{ position:absolute; top:0; left:0; width:4000px; height:2000px; transform-origin:0 0; }
+  svg.links{ position:absolute; top:0; left:0; width:4000px; height:2000px; overflow:visible; pointer-events:none; }
+
+  .card{
+    position:absolute; width:190px;
+    background: var(--paper); color: var(--ink);
+    border-radius:3px; padding:13px 15px 11px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.35), 0 0 0 1px rgba(0,0,0,0.06);
+    cursor: pointer; user-select:none; touch-action:none;
+    border-top:4px solid var(--direct);
+    transition: box-shadow .15s;
+  }
+  .card:hover{ box-shadow: 0 10px 26px rgba(0,0,0,0.45), 0 0 0 1px rgba(0,0,0,0.06); }
+  .card.nat-italian{ border-top-color: var(--paternal); }
+  .card.nat-hungarian{ border-top-color: var(--maternal); }
+  .card.nat-mixed{
+    border-top: 4px solid transparent;
+    border-image: linear-gradient(to right, var(--paternal) 50%, var(--maternal) 50%) 1;
+  }
+  .card.you{ box-shadow: 0 0 0 2px var(--gold), 0 8px 24px rgba(0,0,0,0.4); }
+  .card.deceased{ opacity:0.72; background:#e4dcc8; }
+  .card .name{ font-size:1.05em; font-weight:700; line-height:1.25; margin-bottom:3px; }
+  .card .rel{ font-family:'Segoe UI', sans-serif; font-size:0.64em; text-transform:uppercase; letter-spacing:0.07em; color:#6b5c3d; margin-bottom:7px;}
+  .card .meta{ font-family:'Segoe UI', sans-serif; font-size:0.76em; color:#3a3a3a; line-height:1.5;}
+  .card .job{ display:block; margin-top:6px; padding-top:6px; border-top:1px solid rgba(0,0,0,0.1); font-style:italic; color:#555; }
+
+  .legend{
+    position:fixed; bottom:16px; left:20px; z-index:20;
+    display:flex; gap:16px; align-items:center; flex-wrap:wrap;
+    font-family:'Segoe UI', sans-serif; font-size:0.74em;
+    background: rgba(19,40,33,0.88); padding:9px 14px; border-radius:6px;
+    border:1px solid rgba(228,201,116,0.2); max-width:calc(100vw - 40px);
+  }
+  .legend .dot{ width:10px; height:10px; border-radius:2px; display:inline-block; margin-right:5px; }
+
+  .hint-toast{
+    position:fixed; bottom:16px; right:20px; z-index:20;
+    font-family:'Segoe UI', sans-serif; font-size:0.74em; color: rgba(239,230,211,0.6);
+    background: rgba(19,40,33,0.88); padding:9px 14px; border-radius:6px;
+    border:1px solid rgba(228,201,116,0.2); max-width:230px; line-height:1.5;
+  }
+
+  .overlay{
+    position:fixed; inset:0; background:rgba(8,16,13,0.78); z-index:100;
+    display:none; align-items:flex-start; justify-content:center;
+    overflow-y:auto; padding:40px 16px;
+  }
+  .overlay.open{ display:flex; }
+  .modal{
+    background: var(--paper); color:var(--ink); border-radius:8px;
+    width:100%; max-width:380px; padding:24px 24px 20px;
+    box-shadow:0 20px 60px rgba(0,0,0,0.5);
+    font-family:'Segoe UI', sans-serif;
+  }
+  .modal h2{
+    font-family:Georgia, serif; font-size:1.3em; margin:0 0 4px;
+    color:#2b2010;
+  }
+  .modal .sub{ font-size:0.78em; color:#6b5c3d; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:16px; border-bottom:2px solid var(--gold); padding-bottom:12px; }
+  .modal .row{ margin-bottom:10px; font-size:0.9em; line-height:1.5; }
+  .modal .row b{ color:#5a4d30; }
+  .modal .notes{ margin-top:10px; padding-top:10px; border-top:1px solid #d8cca8; font-style:italic; color:#555; font-size:0.85em; }
+  .modal .close-btn{
+    margin-top:16px; width:100%; padding:9px 16px; border-radius:5px; border:none;
+    background: var(--ink); color: var(--gold-soft); font-weight:600; cursor:pointer; font-size:0.9em;
+  }
+  .modal-actions{ display:flex; gap:8px; margin-top:14px; flex-wrap:wrap; }
+  .btn{ font-family:'Segoe UI', sans-serif; font-size:0.88em; padding:9px 16px; border-radius:5px; border:none; cursor:pointer; font-weight:600; }
+  .btn-primary{ background: var(--ink); color: var(--gold-soft); }
+  .btn-secondary{ background:#e2d8bd; color:#3a3020; }
+  .btn:hover{ opacity:0.9; }
+  .import-textarea{
+    width:100%; height:220px; font-family:monospace; font-size:0.78em; padding:10px;
+    border:1.5px solid #cfc3a3; border-radius:4px; background:#fbf7ee; color:#1c1c1c;
+  }
+  .field{ margin-bottom:12px; }
+  .field label{ display:block; font-size:0.78em; font-weight:600; color:#5a4d30; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.03em; font-family:'Segoe UI', sans-serif; }
+  .field input, .field select, .field textarea{
+    width:100%; padding:8px 10px; border:1.5px solid #cfc3a3; border-radius:4px;
+    font-family:'Segoe UI', sans-serif; font-size:0.92em; background:#fbf7ee; color:#1c1c1c;
+  }
+  .field textarea{ resize:vertical; min-height:60px; }
+
+  @media (max-width:600px){ .title{ font-size:1.05em; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="title">Bottoni · László<small>Family record — view only</small></div>
+  <div class="toolbar">
+    <button id="autoArrangeBtn">Auto-arrange</button>
+    <button id="zoomOutBtn">− Zoom</button>
+    <span class="zoom-readout" id="zoomReadout">45%</span>
+    <button id="zoomInBtn">+ Zoom</button>
+    <button id="resetViewBtn">Reset view</button>
+    <button id="importBtn">Import JSON</button>
+    <button id="loadPresetBtn">My family tree</button>
+    <button id="suggestAddBtn">Suggest a missing person</button>
+  </div>
+</header>
+
+<div id="stage">
+  <div id="canvas">
+    <svg class="links" id="links"></svg>
+  </div>
+</div>
+
+<div class="legend">
+  <span><span class="dot" style="background:var(--paternal)"></span>Italian</span>
+  <span><span class="dot" style="background:var(--maternal)"></span>Hungarian</span>
+  <span><span class="dot" style="background:linear-gradient(to right, var(--paternal) 50%, var(--maternal) 50%)"></span>Mixed heritage</span>
+  <span><span class="dot" style="background:var(--gold)"></span>Other / unspecified</span>
+</div>
+
+<div class="hint-toast">Tap a card for details. Drag empty space to pan. Pinch, scroll, or use the buttons to zoom.</div>
+
+<div class="overlay" id="infoOverlay">
+  <div class="modal">
+    <h2 id="info_name"></h2>
+    <div class="sub" id="info_rel"></div>
+    <div id="info_body"></div>
+    <button class="btn btn-secondary" id="suggestEditBtn" style="width:100%; margin-top:10px;">Suggest a change to this person</button>
+    <button class="close-btn" id="closeInfoBtn">Close</button>
+  </div>
+</div>
+
+<div class="overlay" id="suggestOverlay">
+  <div class="modal">
+    <h2>Suggest a change</h2>
+    <p style="font-family:'Segoe UI', sans-serif; font-size:0.82em; color:#5a4d30; margin:8px 0 14px;">
+      This opens your email app with the details filled in — nothing is submitted automatically, and nothing changes here until the tree's owner reviews it and updates the tree themselves.
+    </p>
+    <div class="field">
+      <label>Person</label>
+      <input type="text" id="sg_person" placeholder="e.g. Stefano Bottoni, or a new person's name">
+    </div>
+    <div class="field">
+      <label>What kind of change?</label>
+      <select id="sg_type">
+        <option value="" disabled selected>— choose —</option>
+        <option value="New person">Add a missing person</option>
+        <option value="Name">Fix/change name</option>
+        <option value="Nationality">Nationality</option>
+        <option value="Job">Job / occupation</option>
+        <option value="Birth">Birth date</option>
+        <option value="Death">Death date</option>
+        <option value="Relationship">Add/fix a relationship</option>
+        <option value="Other">Other</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Details</label>
+      <textarea id="sg_details" placeholder="What should it say, and any relationships (parents, spouse, kids) if this is a new person."></textarea>
+    </div>
+    <div class="field">
+      <label>Your name</label>
+      <input type="text" id="sg_from" placeholder="So they know who suggested it">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" id="sendSuggestBtn">Open email to send</button>
+      <button class="btn btn-secondary" id="closeSuggestBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="importOverlay">
+  <div class="modal">
+    <h2>Import data</h2>
+    <p style="font-family:'Segoe UI', sans-serif; font-size:0.82em; color:#5a4d30; margin:8px 0 14px;">
+      Paste JSON exported from the family tree builder to update what this page shows. Nothing is saved anywhere — reloading the page always brings back your family tree preset.
+    </p>
+    <textarea id="importText" class="import-textarea" placeholder="Paste JSON here…"></textarea>
+    <div class="modal-actions">
+      <button class="btn btn-primary" id="loadImportTextBtn">Load</button>
+      <button class="btn btn-secondary" id="closeImportBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// STATIC DATA SNAPSHOT — this tree is view-only; there is no
+// editing UI and nothing here writes back to any storage.
+// ============================================================
+const PRESET_PEOPLE = [
+  {
+    "id": "francesco",
+    "name": "Franco Bottoni",
+    "nationality": "Italian",
+    "birthYear": null,
+    "deathYear": null,
+    "job": "Banker",
+    "notes": "",
+    "isYou": false,
+    "birthDate": "1946-11-16",
+    "deathDate": null
+  },
+  {
+    "id": "eva",
+    "name": "Mády Éva",
+    "nationality": "Hungarian",
+    "birthYear": null,
+    "deathYear": null,
+    "job": "Tanár",
+    "notes": "",
+    "isYou": false,
+    "birthDate": "1950-04-27",
+    "deathDate": null
+  },
+  {
+    "id": "kalman",
+    "name": "Mády Kálmán",
+    "nationality": "Hungarian",
+    "birthYear": 1957,
+    "deathYear": null,
+    "job": "Villamosmérnök, Jazzzenész",
+    "notes": "Nyugdíjas",
+    "isYou": false,
+    "birthDate": null,
+    "deathDate": null
+  },
+  {
+    "id": "monika",
+    "name": "Várszegi Mónika",
+    "nationality": "Hungarian",
+    "birthYear": 1958,
+    "deathYear": null,
+    "job": "Informatikus a BKK-nál",
+    "notes": "Kálmán's wife",
+    "isYou": false,
+    "birthDate": null,
+    "deathDate": null
+  },
+  {
+    "id": "gabor",
+    "name": "Mády Gábor",
+    "nationality": "Hungarian",
+    "birthYear": 1985,
+    "deathYear": null,
+    "job": "Informatikus",
+    "notes": "Kálmán & Mónika's son",
+    "isYou": false,
+    "birthDate": null,
+    "deathDate": null
+  },
+  {
+    "id": "eszter",
+    "name": "Szabó Eszter",
+    "nationality": "Hungarian",
+    "birthYear": 1991,
+    "deathYear": null,
+    "job": "Csellóművész",
+    "notes": "Gábor's wife — surname unknown",
+    "isYou": false,
+    "birthDate": null,
+    "deathDate": null
+  },
+  {
+    "id": "kalman_son2",
+    "name": "Mády Zsolt",
+    "nationality": "Hungarian",
+    "birthYear": 1982,
+    "deathYear": 2024,
+    "job": "",
+    "notes": "Kálmán & Mónika's 2nd son — name not yet known",
+    "isYou": false,
+    "birthDate": null,
+    "deathDate": null
+  },
+  {
+    "id": "jonathan",
+    "name": "Mády Jonathan",
+    "nationality": "Hungarian",
+    "birthYear": 2025,
+    "deathYear": null,
+    "job": "",
+    "notes": "Gábor's son",
+    "isYou": false
+  },
+  {
+    "id": "beatrice",
+    "name": "Beatrice Bottoni",
+    "nationality": "Italian",
+    "birthYear": 1988,
+    "deathYear": null,
+    "job": "Analyst for an E-commerce company",
+    "notes": "Born Budapest, lives in Milan",
+    "isYou": false,
+    "birthDate": "1988-06-12",
+    "deathDate": null
+  },
+  {
+    "id": "davide",
+    "name": "Davide Sghirlanzoni",
+    "nationality": "Italian",
+    "birthYear": null,
+    "deathYear": null,
+    "job": "Strip process engineer, Tenova (Milan)",
+    "notes": "Lives in Milan",
+    "isYou": false,
+    "birthDate": "1983-12-21",
+    "deathDate": null
+  },
+  {
+    "id": "pietro",
+    "name": "Pietro Sghirlanzoni",
+    "nationality": "Italian",
+    "birthYear": 2021,
+    "deathYear": null,
+    "job": "",
+    "notes": "",
+    "isYou": false,
+    "birthDate": "2021-08-22",
+    "deathDate": null
+  },
+  {
+    "id": "adele",
+    "name": "Adele Sghirlanzoni",
+    "nationality": "Italian",
+    "birthYear": null,
+    "deathYear": null,
+    "job": "",
+    "notes": "",
+    "isYou": false,
+    "birthDate": "2024-05-13",
+    "deathDate": null
+  },
+  {
+    "id": "stefano",
+    "name": "Stefano Bottoni",
+    "nationality": "Italian",
+    "birthYear": 1977,
+    "deathYear": null,
+    "job": "Associate Professor of History, University of Florence (SAGAS) — historian of Eastern Europe & Hungary",
+    "notes": "Born 7 Jul 1977, Bologna",
+    "isYou": false,
+    "birthDate": "1977-07-07",
+    "deathDate": null
+  },
+  {
+    "id": "reka",
+    "name": "László Réka",
+    "nationality": "Hungarian",
+    "birthYear": null,
+    "deathYear": null,
+    "job": "EIT employee",
+    "notes": "Birth year approximate",
+    "isYou": false,
+    "birthDate": "1981-01-08",
+    "deathDate": null
+  },
+  {
+    "id": "daniel",
+    "name": "Bottoni Dániel Balázs",
+    "nationality": "Italian-Hungarian",
+    "birthYear": null,
+    "deathYear": null,
+    "job": "Student",
+    "notes": "",
+    "isYou": true,
+    "birthDate": "2011-08-25",
+    "deathDate": null
+  },
+  {
+    "id": "aron",
+    "name": "Bottoni Áron",
+    "nationality": "Italian-Hungarian",
+    "birthYear": 2014,
+    "deathYear": null,
+    "job": "",
+    "notes": "",
+    "isYou": false,
+    "birthDate": "2014-09-16",
+    "deathDate": null
+  },
+  {
+    "id": "jozsef",
+    "name": "László József",
+    "nationality": "Hungarian",
+    "birthYear": 1940,
+    "deathYear": 2025,
+    "job": "",
+    "notes": "Exact birth year unknown",
+    "isYou": false,
+    "birthDate": null,
+    "deathDate": null
+  },
+  {
+    "id": "maria",
+    "name": "László Mária Olga",
+    "nationality": "Hungarian",
+    "birthYear": 1943,
+    "deathYear": null,
+    "job": "",
+    "notes": "Exact birth year unknown",
+    "isYou": false,
+    "birthDate": null,
+    "deathDate": null
+  },
+  {
+    "id": "emoke",
+    "name": "Jánosi Emőke",
+    "nationality": "Hungarian",
+    "birthYear": null,
+    "deathYear": null,
+    "job": "",
+    "notes": "Réka's sister",
+    "isYou": false
+  },
+  {
+    "id": "zoli",
+    "name": "Jánosi Zoli",
+    "nationality": "Hungarian",
+    "birthYear": null,
+    "deathYear": null,
+    "job": "",
+    "notes": "Emőke's husband",
+    "isYou": false
+  },
+  {
+    "id": "zalan",
+    "name": "Jánosi Zalán",
+    "nationality": "Hungarian",
+    "birthYear": null,
+    "deathYear": null,
+    "job": "",
+    "notes": "",
+    "isYou": false
+  },
+  {
+    "id": "henrietta",
+    "name": "Jánosi Henrietta",
+    "nationality": "Hungarian",
+    "birthYear": null,
+    "deathYear": null,
+    "job": "",
+    "notes": "",
+    "isYou": false
+  },
+  {
+    "id": "p100",
+    "name": "Ifj. Francesco Bottoni",
+    "nationality": "Italian",
+    "job": "Szabó",
+    "birthYear": 1911,
+    "deathYear": 1998,
+    "notes": "",
+    "isYou": false,
+    "birthDate": "1911-07-31",
+    "deathDate": "1998-11-17",
+    "givenName": "Ifj. Francesco",
+    "surname": "Bottoni",
+    "nameOrderGivenFirst": true,
+    "birthMonthYear": null,
+    "deathMonthYear": null,
+    "deceased": false
+  },
+  {
+    "id": "p101",
+    "name": "Adele Zappaterra",
+    "nationality": "Italian",
+    "job": "Háztartás",
+    "birthYear": 1918,
+    "deathYear": 2002,
+    "notes": "",
+    "isYou": false,
+    "birthDate": null,
+    "deathDate": null
+  },
+  {
+    "id": "p102",
+    "name": "Ismen Bottoni",
+    "nationality": "Italian",
+    "job": "Banki Tisztviselő",
+    "birthYear": null,
+    "deathYear": null,
+    "notes": "",
+    "isYou": false,
+    "birthDate": "1938-02-13",
+    "deathDate": null
+  },
+  {
+    "id": "p103",
+    "name": "Valeria Gambetti",
+    "nationality": "Italian",
+    "job": "",
+    "birthYear": null,
+    "deathYear": null,
+    "notes": "",
+    "isYou": false,
+    "birthDate": "1942-10-17",
+    "deathDate": null
+  },
+  {
+    "id": "p104",
+    "name": "Andrea Bottoni",
+    "nationality": "Italian",
+    "job": "",
+    "birthYear": null,
+    "deathYear": null,
+    "notes": "",
+    "isYou": false,
+    "birthDate": "1970-03-05",
+    "deathDate": null
+  },
+  {
+    "id": "p105",
+    "name": "Ifj. Mády Lajos",
+    "nationality": "Hungarian",
+    "job": "Tanár",
+    "birthDate": null,
+    "birthYear": 1910,
+    "deathDate": null,
+    "deathYear": 1962,
+    "notes": "",
+    "isYou": false
+  },
+  {
+    "id": "p106",
+    "name": "Kelemen Irén",
+    "nationality": "Hungarian",
+    "job": "Épitési Kalkulátor",
+    "birthDate": null,
+    "birthYear": 1923,
+    "deathDate": null,
+    "deathYear": 2016,
+    "notes": "",
+    "isYou": false,
+    "givenName": "Irén",
+    "surname": "Kelemen",
+    "nameOrderGivenFirst": false,
+    "birthMonthYear": null,
+    "deathMonthYear": null,
+    "deceased": true
+  },
+  {
+    "id": "p107",
+    "name": "Kelemen Piroska",
+    "nationality": "Hungarian",
+    "job": "Épitésügyi Kalkulátor",
+    "birthDate": null,
+    "birthYear": 1925,
+    "deathDate": null,
+    "deathYear": null,
+    "notes": "Halál év nincs",
+    "isYou": false,
+    "givenName": "Kelemen",
+    "surname": "Piroska",
+    "nameOrderGivenFirst": true,
+    "birthMonthYear": null,
+    "deathMonthYear": null,
+    "deceased": true
+  },
+  {
+    "id": "p108",
+    "name": "Kelemen Gyula",
+    "nationality": "Hungarian",
+    "job": "Posta Műszaki Vezető",
+    "birthDate": null,
+    "birthYear": null,
+    "deathDate": null,
+    "deathYear": null,
+    "notes": "Születési és Háláli év nincs",
+    "isYou": false
+  },
+  {
+    "id": "p109",
+    "name": "Kelemen Péter",
+    "nationality": "Hungarian",
+    "job": "",
+    "birthDate": null,
+    "birthYear": null,
+    "deathDate": null,
+    "deathYear": null,
+    "notes": "",
+    "isYou": false
+  },
+  {
+    "id": "p110",
+    "name": "Ifj. Novák Imre",
+    "nationality": "Hungarian",
+    "job": "",
+    "birthDate": null,
+    "birthYear": 1918,
+    "deathDate": null,
+    "deathYear": 1978,
+    "notes": "",
+    "isYou": false
+  },
+  {
+    "id": "p111",
+    "name": "Pál Erzsébet",
+    "nationality": "Hungarian",
+    "job": "",
+    "birthDate": null,
+    "birthYear": 1923,
+    "deathDate": null,
+    "deathYear": 2015,
+    "notes": "",
+    "isYou": false
+  },
+  {
+    "id": "p112",
+    "name": "Novák Imre",
+    "nationality": "Hungarian",
+    "job": "",
+    "birthDate": null,
+    "birthYear": 1891,
+    "deathDate": null,
+    "deathYear": 1911,
+    "notes": "",
+    "isYou": false
+  },
+  {
+    "id": "p113",
+    "name": "Balog Irma",
+    "nationality": "Hungarian",
+    "job": "",
+    "birthDate": null,
+    "birthYear": 1894,
+    "deathDate": null,
+    "deathYear": 1954,
+    "notes": "",
+    "isYou": false
+  },
+  {
+    "id": "p114",
+    "name": "Szabó Irén",
+    "nationality": "Hungarian",
+    "job": "Posta Főtisztviselő",
+    "birthDate": null,
+    "birthYear": 1900,
+    "deathDate": null,
+    "deathYear": 1998,
+    "notes": "",
+    "isYou": false
+  },
+  {
+    "id": "p115",
+    "name": "Kelemen Kálmán",
+    "nationality": "Hungarian",
+    "job": "Gazdálkodó",
+    "birthDate": null,
+    "birthYear": 1886,
+    "deathDate": null,
+    "deathYear": 1940,
+    "notes": "",
+    "isYou": false,
+    "givenName": "Kálmán",
+    "surname": "Kelemen",
+    "nameOrderGivenFirst": false,
+    "birthMonthYear": null,
+    "deathMonthYear": null,
+    "deceased": false
+  },
+  {
+    "id": "p116",
+    "name": "Gulyás Judit",
+    "nationality": "Hungarian",
+    "job": "",
+    "birthDate": null,
+    "birthYear": null,
+    "deathDate": null,
+    "deathYear": null,
+    "notes": "",
+    "isYou": false
+  },
+  {
+    "id": "p117",
+    "name": "Mády Lajos",
+    "nationality": "Hungarian",
+    "job": "Újságíró",
+    "birthDate": null,
+    "birthYear": 1880,
+    "deathDate": null,
+    "deathYear": 1938,
+    "notes": "",
+    "isYou": false
+  },
+  {
+    "id": "p118",
+    "name": "Vass Róza",
+    "nationality": "Hungarian",
+    "job": "Tanítónő",
+    "birthDate": null,
+    "birthYear": 1888,
+    "deathDate": null,
+    "deathYear": 1967,
+    "notes": "",
+    "isYou": false
+  },
+  {
+    "id": "p119",
+    "name": "literáti Mády Lajos",
+    "nationality": "Hungarian",
+    "job": "Református Esperes",
+    "birthDate": null,
+    "birthYear": 1848,
+    "deathDate": null,
+    "deathYear": 1918,
+    "notes": "Amac/Erdély, van Wikipédia oldala, Újpesten van egy Mády Lajos utca",
+    "isYou": false
+  },
+  {
+    "id": "p120",
+    "name": "Mády Gyula",
+    "nationality": "Hungarian",
+    "job": "",
+    "birthDate": null,
+    "birthYear": null,
+    "deathDate": null,
+    "deathYear": null,
+    "notes": "Dunán csonákázva halt meg",
+    "isYou": false,
+    "givenName": "Mády",
+    "surname": "Gyula",
+    "nameOrderGivenFirst": true,
+    "birthMonthYear": null,
+    "deathMonthYear": null,
+    "deceased": true
+  },
+  {
+    "id": "p121",
+    "name": "Mády Zoltán",
+    "nationality": "Hungarian",
+    "job": "",
+    "birthDate": "1921-01-02",
+    "birthYear": null,
+    "deathDate": "1942-10-31",
+    "deathYear": null,
+    "notes": "Dón Kanyarban halt meg, repülőpilóta volt",
+    "isYou": false
+  },
+  {
+    "id": "p122",
+    "name": "Valentina Zaccanti",
+    "nationality": "Italian",
+    "job": "",
+    "birthDate": null,
+    "birthYear": null,
+    "deathDate": null,
+    "deathYear": null,
+    "notes": "",
+    "isYou": false
+  },
+  {
+    "id": "p123",
+    "name": "László Imre",
+    "nationality": "Hungarian",
+    "job": "",
+    "birthDate": null,
+    "birthYear": 1905,
+    "deathDate": null,
+    "deathYear": 1977,
+    "notes": "",
+    "isYou": false
+  },
+  {
+    "id": "p124",
+    "name": "Balogh Vilhemina",
+    "nationality": "Italian",
+    "job": "",
+    "birthDate": null,
+    "birthYear": 1910,
+    "deathDate": null,
+    "deathYear": 1983,
+    "notes": "",
+    "isYou": false
+  },
+  {
+    "id": "p125",
+    "name": "Tamás",
+    "nationality": "Hungarian",
+    "job": "",
+    "birthDate": null,
+    "birthYear": 1994,
+    "deathDate": null,
+    "deathYear": null,
+    "notes": "",
+    "isYou": false
+  },
+  {
+    "id": "p126",
+    "name": "Novák Ella",
+    "nationality": "Hungarian",
+    "job": "",
+    "birthDate": null,
+    "birthYear": 1945,
+    "deathDate": "2026-09-18",
+    "deathYear": null,
+    "notes": "",
+    "isYou": false
+  },
+  {
+    "id": "p127",
+    "name": "Csiker Dezső",
+    "nationality": "Hungarian",
+    "job": "",
+    "birthDate": null,
+    "birthYear": 1950,
+    "deathDate": null,
+    "deathYear": null,
+    "notes": "",
+    "isYou": false
+  },
+  {
+    "id": "p128",
+    "name": "Novák Mihály",
+    "nationality": "Hungarian",
+    "job": "",
+    "birthDate": null,
+    "birthYear": 1842,
+    "deathDate": null,
+    "deathYear": null,
+    "notes": "",
+    "isYou": false,
+    "givenName": "Novák",
+    "surname": "Mihály",
+    "nameOrderGivenFirst": true,
+    "birthMonthYear": null,
+    "deathMonthYear": null,
+    "deceased": true
+  },
+  {
+    "id": "p129",
+    "name": "Zsuzsanna",
+    "nationality": "Hungarian",
+    "job": "",
+    "birthDate": null,
+    "birthYear": null,
+    "deathDate": null,
+    "deathYear": null,
+    "notes": "",
+    "isYou": false,
+    "givenName": "Zsuzsanna",
+    "surname": "",
+    "nameOrderGivenFirst": true,
+    "birthMonthYear": null,
+    "deathMonthYear": null,
+    "deceased": true
+  },
+  {
+    "id": "p130",
+    "name": "Novák Lajos",
+    "nationality": "Hungarian",
+    "job": "",
+    "birthDate": null,
+    "birthYear": null,
+    "deathDate": null,
+    "deathYear": null,
+    "notes": "",
+    "isYou": false,
+    "givenName": "Novák",
+    "surname": "Lajos",
+    "nameOrderGivenFirst": true,
+    "birthMonthYear": null,
+    "deathMonthYear": null,
+    "deceased": true
+  },
+  {
+    "id": "p131",
+    "name": "Novák József",
+    "nationality": "Hungarian",
+    "job": "",
+    "birthDate": null,
+    "birthYear": null,
+    "deathDate": null,
+    "deathYear": null,
+    "notes": "",
+    "isYou": false,
+    "givenName": "Novák",
+    "surname": "József",
+    "nameOrderGivenFirst": true,
+    "birthMonthYear": null,
+    "deathMonthYear": null,
+    "deceased": true
+  },
+  {
+    "id": "p132",
+    "name": "Novák Feci",
+    "nationality": "Hungarian",
+    "job": "",
+    "birthDate": null,
+    "birthYear": null,
+    "deathDate": null,
+    "deathYear": null,
+    "notes": "",
+    "isYou": false,
+    "givenName": "Novák",
+    "surname": "Feci",
+    "nameOrderGivenFirst": true,
+    "birthMonthYear": null,
+    "deathMonthYear": null,
+    "deceased": true
+  },
+  {
+    "id": "p133",
+    "name": "Novák Sándor",
+    "nationality": "Hungarian",
+    "job": "",
+    "birthDate": null,
+    "birthYear": null,
+    "deathDate": null,
+    "deathYear": null,
+    "notes": "",
+    "isYou": false,
+    "givenName": "Novák",
+    "surname": "Sándor",
+    "nameOrderGivenFirst": true,
+    "birthMonthYear": null,
+    "deathMonthYear": null,
+    "deceased": true
+  },
+  {
+    "id": "p134",
+    "name": "Novák Anna",
+    "nationality": "Hungarian",
+    "job": "",
+    "birthDate": null,
+    "birthYear": null,
+    "deathDate": null,
+    "deathYear": null,
+    "notes": "",
+    "isYou": false,
+    "givenName": "Novák",
+    "surname": "Anna",
+    "nameOrderGivenFirst": true,
+    "birthMonthYear": null,
+    "deathMonthYear": null,
+    "deceased": true
+  },
+  {
+    "id": "p135",
+    "name": "Novák Zsuzsanna",
+    "nationality": "Hungarian",
+    "job": "",
+    "birthDate": null,
+    "birthYear": null,
+    "deathDate": null,
+    "deathYear": null,
+    "notes": "",
+    "isYou": false,
+    "givenName": "Novák",
+    "surname": "Zsuzsanna",
+    "nameOrderGivenFirst": true,
+    "birthMonthYear": null,
+    "deathMonthYear": null,
+    "deceased": true
+  },
+  {
+    "id": "p136",
+    "name": "Novák Mána",
+    "nationality": "Hungarian",
+    "job": "",
+    "birthDate": null,
+    "birthYear": null,
+    "deathDate": null,
+    "deathYear": null,
+    "notes": "",
+    "isYou": false,
+    "givenName": "Novák",
+    "surname": "Mána",
+    "nameOrderGivenFirst": true,
+    "birthMonthYear": null,
+    "deathMonthYear": null,
+    "deceased": true
+  },
+  {
+    "id": "p137",
+    "name": "Novák Klára",
+    "nationality": "Hungarian",
+    "job": "",
+    "birthDate": null,
+    "birthYear": null,
+    "deathDate": null,
+    "deathYear": null,
+    "notes": "",
+    "isYou": false,
+    "givenName": "Novák",
+    "surname": "Klára",
+    "nameOrderGivenFirst": true,
+    "birthMonthYear": null,
+    "deathMonthYear": null,
+    "deceased": true
+  },
+  {
+    "id": "p138",
+    "name": "Novák Rozália",
+    "nationality": "Hungarian",
+    "job": "",
+    "birthDate": null,
+    "birthYear": null,
+    "deathDate": null,
+    "deathYear": null,
+    "notes": "",
+    "isYou": false,
+    "givenName": "Novák",
+    "surname": "Rozália",
+    "nameOrderGivenFirst": true,
+    "birthMonthYear": null,
+    "deathMonthYear": null,
+    "deceased": true
+  },
+  {
+    "id": "p139",
+    "name": "Novák Erzsébet",
+    "nationality": "Hungarian",
+    "job": "",
+    "birthDate": null,
+    "birthYear": null,
+    "deathDate": null,
+    "deathYear": null,
+    "notes": "",
+    "isYou": false,
+    "givenName": "Novák",
+    "surname": "Erzsébet",
+    "nameOrderGivenFirst": true,
+    "birthMonthYear": null,
+    "deathMonthYear": null,
+    "deceased": true
+  },
+  {
+    "id": "p140",
+    "name": "Novák Magda",
+    "nationality": "Hungarian",
+    "job": "",
+    "birthDate": null,
+    "birthYear": null,
+    "deathDate": null,
+    "deathYear": null,
+    "notes": "",
+    "isYou": false,
+    "givenName": "Novák",
+    "surname": "Magda",
+    "nameOrderGivenFirst": true,
+    "birthMonthYear": null,
+    "deathMonthYear": null,
+    "deceased": true
+  },
+  {
+    "id": "p141",
+    "name": "Novák Gergi",
+    "nationality": "Hungarian",
+    "job": "",
+    "birthDate": null,
+    "birthYear": null,
+    "deathDate": null,
+    "deathYear": null,
+    "notes": "",
+    "isYou": false,
+    "givenName": "Novák",
+    "surname": "Gergi",
+    "nameOrderGivenFirst": true,
+    "birthMonthYear": null,
+    "deathMonthYear": null,
+    "deceased": true
+  },
+  {
+    "id": "p142",
+    "name": "Póli Néni",
+    "nationality": "Hungarian",
+    "job": "",
+    "birthDate": null,
+    "birthYear": null,
+    "deathDate": null,
+    "deathYear": null,
+    "notes": "",
+    "isYou": false,
+    "givenName": "Póli",
+    "surname": "Néni",
+    "nameOrderGivenFirst": true,
+    "birthMonthYear": null,
+    "deathMonthYear": null,
+    "deceased": true
+  },
+  {
+    "id": "p143",
+    "name": "Aranka Nénje",
+    "nationality": "Hungarian",
+    "job": "",
+    "birthDate": null,
+    "birthYear": null,
+    "deathDate": null,
+    "deathYear": null,
+    "notes": "",
+    "isYou": false,
+    "givenName": "Aranka",
+    "surname": "Nénje",
+    "nameOrderGivenFirst": true,
+    "birthMonthYear": null,
+    "deathMonthYear": null,
+    "deceased": true
+  },
+  {
+    "id": "p144",
+    "name": "Ifj. Novák Erzsébet",
+    "nationality": "Hungarian",
+    "job": "",
+    "birthDate": null,
+    "birthYear": null,
+    "deathDate": null,
+    "deathYear": 2023,
+    "notes": "",
+    "isYou": false
+  },
+  {
+    "id": "p145",
+    "name": "Erzsébet",
+    "nationality": "Hungarian",
+    "job": "",
+    "birthDate": null,
+    "birthYear": null,
+    "deathDate": null,
+    "deathYear": null,
+    "notes": "",
+    "isYou": false,
+    "givenName": "Erzsébet",
+    "surname": "",
+    "nameOrderGivenFirst": true,
+    "birthMonthYear": null,
+    "deathMonthYear": null,
+    "deceased": true
+  },
+  {
+    "id": "p146",
+    "name": "Csabi",
+    "nationality": "Hungarian",
+    "job": "",
+    "birthDate": null,
+    "birthYear": 1966,
+    "deathDate": null,
+    "deathYear": null,
+    "notes": "",
+    "isYou": false
+  },
+  {
+    "id": "p149",
+    "name": "Ifj. Giuseppe Ugo Bottoni",
+    "givenName": "Ifj. Giuseppe Ugo",
+    "surname": "Bottoni",
+    "nameOrderGivenFirst": true,
+    "nationality": "Italian",
+    "job": "",
+    "birthDate": "1883-05-17",
+    "birthMonthYear": null,
+    "birthYear": null,
+    "deathDate": "1956-07-22",
+    "deathMonthYear": null,
+    "deathYear": null,
+    "deceased": false,
+    "notes": "",
+    "isYou": false
+  },
+  {
+    "id": "p150",
+    "name": "Luigi Antonio Bottoni",
+    "givenName": "Luigi Antonio",
+    "surname": "Bottoni",
+    "nameOrderGivenFirst": true,
+    "nationality": "Italian",
+    "job": "",
+    "birthDate": "1842-01-17",
+    "birthMonthYear": null,
+    "birthYear": null,
+    "deathDate": "1886-09-02",
+    "deathMonthYear": null,
+    "deathYear": null,
+    "deceased": false,
+    "notes": "",
+    "isYou": false
+  },
+  {
+    "id": "p151",
+    "name": "Francesco Bottoni",
+    "givenName": "Francesco",
+    "surname": "Bottoni",
+    "nameOrderGivenFirst": true,
+    "nationality": "Italian",
+    "job": "",
+    "birthDate": null,
+    "birthMonthYear": null,
+    "birthYear": 20,
+    "deathDate": "1868-07-02",
+    "deathMonthYear": null,
+    "deathYear": null,
+    "deceased": false,
+    "notes": "",
+    "isYou": false
+  },
+  {
+    "id": "p152",
+    "name": "Domenico Bottoni",
+    "givenName": "Domenico",
+    "surname": "Bottoni",
+    "nameOrderGivenFirst": true,
+    "nationality": "Italian",
+    "job": "",
+    "birthDate": null,
+    "birthMonthYear": null,
+    "birthYear": null,
+    "deathDate": null,
+    "deathMonthYear": null,
+    "deathYear": null,
+    "deceased": true,
+    "notes": "",
+    "isYou": false
+  },
+  {
+    "id": "p153",
+    "name": "Elisabetta Gilioli",
+    "givenName": "Elisabetta",
+    "surname": "Gilioli",
+    "nameOrderGivenFirst": true,
+    "nationality": "Italian",
+    "job": "",
+    "birthDate": null,
+    "birthMonthYear": null,
+    "birthYear": null,
+    "deathDate": null,
+    "deathMonthYear": null,
+    "deathYear": null,
+    "deceased": true,
+    "notes": "",
+    "isYou": false
+  },
+  {
+    "id": "p154",
+    "name": "Caterina Guidi",
+    "givenName": "Caterina",
+    "surname": "Guidi",
+    "nameOrderGivenFirst": true,
+    "nationality": "Italian",
+    "job": "",
+    "birthDate": null,
+    "birthMonthYear": null,
+    "birthYear": null,
+    "deathDate": null,
+    "deathMonthYear": null,
+    "deathYear": null,
+    "deceased": true,
+    "notes": "",
+    "isYou": false
+  },
+  {
+    "id": "p155",
+    "name": "Melania Emiliana Giuseppa Forlani",
+    "givenName": "Melania Emiliana Giuseppa",
+    "surname": "Forlani",
+    "nameOrderGivenFirst": true,
+    "nationality": "Italian",
+    "job": "",
+    "birthDate": null,
+    "birthMonthYear": null,
+    "birthYear": null,
+    "deathDate": null,
+    "deathMonthYear": null,
+    "deathYear": null,
+    "deceased": true,
+    "notes": "",
+    "isYou": false
+  },
+  {
+    "id": "p156",
+    "name": "Giuseppina Maria Bottoni",
+    "givenName": "Giuseppina Maria",
+    "surname": "Bottoni",
+    "nameOrderGivenFirst": true,
+    "nationality": "Italian",
+    "job": "",
+    "birthDate": "1880-09-08",
+    "birthMonthYear": null,
+    "birthYear": null,
+    "deathDate": "1882-07-13",
+    "deathMonthYear": null,
+    "deathYear": null,
+    "deceased": false,
+    "notes": "",
+    "isYou": false
+  },
+  {
+    "id": "p158",
+    "name": "Antonio Aldo Bottoni",
+    "givenName": "Antonio Aldo",
+    "surname": "Bottoni",
+    "nameOrderGivenFirst": true,
+    "nationality": "Italian",
+    "job": "",
+    "birthDate": "1879-01-08",
+    "birthMonthYear": null,
+    "birthYear": null,
+    "deathDate": "1879-01-16",
+    "deathMonthYear": null,
+    "deathYear": null,
+    "deceased": false,
+    "notes": "",
+    "isYou": false
+  },
+  {
+    "id": "p159",
+    "name": "Giuseppe Ugo Bottoni",
+    "givenName": "Giuseppe Ugo",
+    "surname": "Bottoni",
+    "nameOrderGivenFirst": true,
+    "nationality": "Italian",
+    "job": "",
+    "birthDate": "1875-03-20",
+    "birthMonthYear": null,
+    "birthYear": null,
+    "deathDate": "1880-08-27",
+    "deathMonthYear": null,
+    "deathYear": null,
+    "deceased": false,
+    "notes": "",
+    "isYou": false
+  },
+  {
+    "id": "p160",
+    "name": "Attilio Domenico Bottoni",
+    "givenName": "Attilio Domenico",
+    "surname": "Bottoni",
+    "nameOrderGivenFirst": true,
+    "nationality": "Italian",
+    "job": "",
+    "birthDate": "1872-06-15",
+    "birthMonthYear": null,
+    "birthYear": null,
+    "deathDate": "1950-04-20",
+    "deathMonthYear": null,
+    "deathYear": null,
+    "deceased": false,
+    "notes": "",
+    "isYou": false
+  },
+  {
+    "id": "p161",
+    "name": "Giuseppe Francesco Bottoni",
+    "givenName": "Giuseppe Francesco",
+    "surname": "Bottoni",
+    "nameOrderGivenFirst": true,
+    "nationality": "Italian",
+    "job": "",
+    "birthDate": "1870-04-02",
+    "birthMonthYear": null,
+    "birthYear": null,
+    "deathDate": "1886-09-03",
+    "deathMonthYear": null,
+    "deathYear": null,
+    "deceased": false,
+    "notes": "",
+    "isYou": false
+  },
+  {
+    "id": "p162",
+    "name": "Ugo Roberto Bottoni",
+    "givenName": "Ugo Roberto",
+    "surname": "Bottoni",
+    "nameOrderGivenFirst": true,
+    "nationality": "Italian",
+    "job": "",
+    "birthDate": "1867-10-19",
+    "birthMonthYear": null,
+    "birthYear": null,
+    "deathDate": "1872-10-11",
+    "deathMonthYear": null,
+    "deathYear": null,
+    "deceased": false,
+    "notes": "",
+    "isYou": false
+  },
+  {
+    "id": "p163",
+    "name": "Giovanni Bottoni",
+    "givenName": "Giovanni",
+    "surname": "Bottoni",
+    "nameOrderGivenFirst": true,
+    "nationality": "Italian",
+    "job": "",
+    "birthDate": "1836-12-08",
+    "birthMonthYear": null,
+    "birthYear": null,
+    "deathDate": "1888-01-20",
+    "deathMonthYear": null,
+    "deathYear": null,
+    "deceased": false,
+    "notes": "",
+    "isYou": false
+  },
+  {
+    "id": "p164",
+    "name": "Vecchittini Adelinda Giuseppina Bottoni",
+    "givenName": "Vecchittini Adelinda Giuseppina",
+    "surname": "Bottoni",
+    "nameOrderGivenFirst": true,
+    "nationality": "Italian",
+    "job": "",
+    "birthDate": null,
+    "birthMonthYear": null,
+    "birthYear": null,
+    "deathDate": null,
+    "deathMonthYear": null,
+    "deathYear": null,
+    "deceased": true,
+    "notes": "",
+    "isYou": false
+  },
+  {
+    "id": "p166",
+    "name": "Schincaglia Artemisia Maria Bottoni",
+    "givenName": "Schincaglia Artemisia Maria",
+    "surname": "Bottoni",
+    "nameOrderGivenFirst": true,
+    "nationality": "Italian",
+    "job": "",
+    "birthDate": null,
+    "birthMonthYear": null,
+    "birthYear": null,
+    "deathDate": null,
+    "deathMonthYear": null,
+    "deathYear": null,
+    "deceased": true,
+    "notes": "",
+    "isYou": false
+  },
+  {
+    "id": "p167",
+    "name": "Disma Alfredo Bottoni",
+    "givenName": "Disma Alfredo",
+    "surname": "Bottoni",
+    "nameOrderGivenFirst": true,
+    "nationality": "Italian",
+    "job": "",
+    "birthDate": "1912-12-22",
+    "birthMonthYear": null,
+    "birthYear": null,
+    "deathDate": "2016-12-21",
+    "deathMonthYear": null,
+    "deathYear": null,
+    "deceased": false,
+    "notes": "",
+    "isYou": false
+  },
+  {
+    "id": "p168",
+    "name": "Rosa Bottoni",
+    "givenName": "Rosa",
+    "surname": "Bottoni",
+    "nameOrderGivenFirst": true,
+    "nationality": "Italian",
+    "job": "",
+    "birthDate": "1916-10-12",
+    "birthMonthYear": null,
+    "birthYear": null,
+    "deathDate": "2002-12-31",
+    "deathMonthYear": null,
+    "deathYear": null,
+    "deceased": false,
+    "notes": "",
+    "isYou": false
+  },
+  {
+    "id": "p169",
+    "name": "Saul Bottoni",
+    "givenName": "Saul",
+    "surname": "Bottoni",
+    "nameOrderGivenFirst": true,
+    "nationality": "Italian",
+    "job": "",
+    "birthDate": "1919-04-15",
+    "birthMonthYear": null,
+    "birthYear": null,
+    "deathDate": null,
+    "deathMonthYear": null,
+    "deathYear": null,
+    "deceased": true,
+    "notes": "A don kanyarnál halt meg.",
+    "isYou": false
+  },
+  {
+    "id": "p170",
+    "name": "Diotina Bottoni",
+    "givenName": "Diotina",
+    "surname": "Bottoni",
+    "nameOrderGivenFirst": true,
+    "nationality": "Italian",
+    "job": "",
+    "birthDate": "1922-11-05",
+    "birthMonthYear": null,
+    "birthYear": null,
+    "deathDate": "2002-09-14",
+    "deathMonthYear": null,
+    "deathYear": null,
+    "deceased": false,
+    "notes": "",
+    "isYou": false
+  },
+  {
+    "id": "p171",
+    "name": "Adriana Finetti",
+    "givenName": "Adriana",
+    "surname": "Finetti",
+    "nameOrderGivenFirst": true,
+    "nationality": "Italian",
+    "job": "",
+    "birthDate": null,
+    "birthMonthYear": null,
+    "birthYear": null,
+    "deathDate": null,
+    "deathMonthYear": null,
+    "deathYear": null,
+    "deceased": true,
+    "notes": "",
+    "isYou": false
+  },
+  {
+    "id": "p172",
+    "name": "Gian Carlo Francesco Giovanni",
+    "givenName": "Gian Carlo Francesco",
+    "surname": "Giovanni",
+    "nameOrderGivenFirst": true,
+    "nationality": "Italian",
+    "job": "",
+    "birthDate": null,
+    "birthMonthYear": null,
+    "birthYear": null,
+    "deathDate": null,
+    "deathMonthYear": null,
+    "deathYear": null,
+    "deceased": true,
+    "notes": "",
+    "isYou": false
+  },
+  {
+    "id": "p173",
+    "name": "Vittorio Vicinelli",
+    "givenName": "Vittorio",
+    "surname": "Vicinelli",
+    "nameOrderGivenFirst": true,
+    "nationality": "Italian",
+    "job": "",
+    "birthDate": null,
+    "birthMonthYear": null,
+    "birthYear": null,
+    "deathDate": null,
+    "deathMonthYear": null,
+    "deathYear": null,
+    "deceased": true,
+    "notes": "",
+    "isYou": false
+  }
+];
+const PRESET_RELATIONS = [
+  {
+    "type": "spouse",
+    "a": "francesco",
+    "b": "eva"
+  },
+  {
+    "type": "spouse",
+    "a": "jozsef",
+    "b": "maria"
+  },
+  {
+    "type": "spouse",
+    "a": "beatrice",
+    "b": "davide"
+  },
+  {
+    "type": "spouse",
+    "a": "stefano",
+    "b": "reka"
+  },
+  {
+    "type": "spouse",
+    "a": "emoke",
+    "b": "zoli"
+  },
+  {
+    "type": "spouse",
+    "a": "kalman",
+    "b": "monika"
+  },
+  {
+    "type": "spouse",
+    "a": "gabor",
+    "b": "eszter"
+  },
+  {
+    "type": "sibling",
+    "a": "eva",
+    "b": "kalman"
+  },
+  {
+    "type": "parent-child",
+    "a": "francesco",
+    "b": "stefano"
+  },
+  {
+    "type": "parent-child",
+    "a": "eva",
+    "b": "stefano"
+  },
+  {
+    "type": "parent-child",
+    "a": "francesco",
+    "b": "beatrice"
+  },
+  {
+    "type": "parent-child",
+    "a": "eva",
+    "b": "beatrice"
+  },
+  {
+    "type": "parent-child",
+    "a": "jozsef",
+    "b": "reka"
+  },
+  {
+    "type": "parent-child",
+    "a": "maria",
+    "b": "reka"
+  },
+  {
+    "type": "parent-child",
+    "a": "jozsef",
+    "b": "emoke"
+  },
+  {
+    "type": "parent-child",
+    "a": "maria",
+    "b": "emoke"
+  },
+  {
+    "type": "parent-child",
+    "a": "stefano",
+    "b": "daniel"
+  },
+  {
+    "type": "parent-child",
+    "a": "reka",
+    "b": "daniel"
+  },
+  {
+    "type": "parent-child",
+    "a": "stefano",
+    "b": "aron"
+  },
+  {
+    "type": "parent-child",
+    "a": "reka",
+    "b": "aron"
+  },
+  {
+    "type": "parent-child",
+    "a": "beatrice",
+    "b": "pietro"
+  },
+  {
+    "type": "parent-child",
+    "a": "davide",
+    "b": "pietro"
+  },
+  {
+    "type": "parent-child",
+    "a": "beatrice",
+    "b": "adele"
+  },
+  {
+    "type": "parent-child",
+    "a": "davide",
+    "b": "adele"
+  },
+  {
+    "type": "parent-child",
+    "a": "emoke",
+    "b": "zalan"
+  },
+  {
+    "type": "parent-child",
+    "a": "zoli",
+    "b": "zalan"
+  },
+  {
+    "type": "parent-child",
+    "a": "emoke",
+    "b": "henrietta"
+  },
+  {
+    "type": "parent-child",
+    "a": "zoli",
+    "b": "henrietta"
+  },
+  {
+    "type": "parent-child",
+    "a": "kalman",
+    "b": "gabor"
+  },
+  {
+    "type": "parent-child",
+    "a": "monika",
+    "b": "gabor"
+  },
+  {
+    "type": "parent-child",
+    "a": "kalman",
+    "b": "kalman_son2"
+  },
+  {
+    "type": "parent-child",
+    "a": "monika",
+    "b": "kalman_son2"
+  },
+  {
+    "type": "parent-child",
+    "a": "gabor",
+    "b": "jonathan"
+  },
+  {
+    "type": "parent-child",
+    "a": "eszter",
+    "b": "jonathan"
+  },
+  {
+    "type": "parent-child",
+    "a": "p100",
+    "b": "francesco"
+  },
+  {
+    "type": "spouse",
+    "a": "p101",
+    "b": "p100"
+  },
+  {
+    "type": "parent-child",
+    "a": "p100",
+    "b": "p102"
+  },
+  {
+    "type": "spouse",
+    "a": "p102",
+    "b": "p103"
+  },
+  {
+    "type": "parent-child",
+    "a": "p102",
+    "b": "p104"
+  },
+  {
+    "type": "parent-child",
+    "a": "p101",
+    "b": "p102"
+  },
+  {
+    "type": "parent-child",
+    "a": "p101",
+    "b": "francesco"
+  },
+  {
+    "type": "parent-child",
+    "a": "p105",
+    "b": "kalman"
+  },
+  {
+    "type": "parent-child",
+    "a": "p105",
+    "b": "eva"
+  },
+  {
+    "type": "parent-child",
+    "a": "p106",
+    "b": "eva"
+  },
+  {
+    "type": "parent-child",
+    "a": "p106",
+    "b": "kalman"
+  },
+  {
+    "type": "sibling",
+    "a": "p107",
+    "b": "p106"
+  },
+  {
+    "type": "sibling",
+    "a": "p108",
+    "b": "p107"
+  },
+  {
+    "type": "sibling",
+    "a": "p108",
+    "b": "p106"
+  },
+  {
+    "type": "parent-child",
+    "a": "p110",
+    "b": "maria"
+  },
+  {
+    "type": "parent-child",
+    "a": "p111",
+    "b": "maria"
+  },
+  {
+    "type": "parent-child",
+    "a": "p112",
+    "b": "p110"
+  },
+  {
+    "type": "spouse",
+    "a": "p113",
+    "b": "p112"
+  },
+  {
+    "type": "parent-child",
+    "a": "p113",
+    "b": "p110"
+  },
+  {
+    "type": "parent-child",
+    "a": "p108",
+    "b": "p109"
+  },
+  {
+    "type": "spouse",
+    "a": "p115",
+    "b": "p114"
+  },
+  {
+    "type": "parent-child",
+    "a": "p115",
+    "b": "p108"
+  },
+  {
+    "type": "parent-child",
+    "a": "p115",
+    "b": "p106"
+  },
+  {
+    "type": "parent-child",
+    "a": "p115",
+    "b": "p107"
+  },
+  {
+    "type": "spouse",
+    "a": "p116",
+    "b": "p108"
+  },
+  {
+    "type": "parent-child",
+    "a": "p116",
+    "b": "p109"
+  },
+  {
+    "type": "parent-child",
+    "a": "p117",
+    "b": "p105"
+  },
+  {
+    "type": "parent-child",
+    "a": "p119",
+    "b": "p117"
+  },
+  {
+    "type": "spouse",
+    "a": "p118",
+    "b": "p117"
+  },
+  {
+    "type": "parent-child",
+    "a": "p118",
+    "b": "p105"
+  },
+  {
+    "type": "sibling",
+    "a": "p120",
+    "b": "p105"
+  },
+  {
+    "type": "sibling",
+    "a": "p121",
+    "b": "p105"
+  },
+  {
+    "type": "parent-child",
+    "a": "p117",
+    "b": "p120"
+  },
+  {
+    "type": "parent-child",
+    "a": "p118",
+    "b": "p120"
+  },
+  {
+    "type": "parent-child",
+    "a": "p117",
+    "b": "p121"
+  },
+  {
+    "type": "parent-child",
+    "a": "p118",
+    "b": "p121"
+  },
+  {
+    "type": "parent-child",
+    "a": "p103",
+    "b": "p104"
+  },
+  {
+    "type": "spouse",
+    "a": "p122",
+    "b": "p104"
+  },
+  {
+    "type": "parent-child",
+    "a": "p123",
+    "b": "jozsef"
+  },
+  {
+    "type": "spouse",
+    "a": "p124",
+    "b": "p123"
+  },
+  {
+    "type": "parent-child",
+    "a": "p124",
+    "b": "jozsef"
+  },
+  {
+    "type": "spouse",
+    "a": "p125",
+    "b": "henrietta"
+  },
+  {
+    "type": "sibling",
+    "a": "p126",
+    "b": "maria"
+  },
+  {
+    "type": "parent-child",
+    "a": "p110",
+    "b": "p126"
+  },
+  {
+    "type": "spouse",
+    "a": "p110",
+    "b": "p111"
+  },
+  {
+    "type": "parent-child",
+    "a": "p107",
+    "b": "p127"
+  },
+  {
+    "type": "parent-child",
+    "a": "p128",
+    "b": "p112"
+  },
+  {
+    "type": "spouse",
+    "a": "p129",
+    "b": "p128"
+  },
+  {
+    "type": "parent-child",
+    "a": "p129",
+    "b": "p112"
+  },
+  {
+    "type": "parent-child",
+    "a": "p128",
+    "b": "p130"
+  },
+  {
+    "type": "parent-child",
+    "a": "p129",
+    "b": "p130"
+  },
+  {
+    "type": "parent-child",
+    "a": "p128",
+    "b": "p131"
+  },
+  {
+    "type": "parent-child",
+    "a": "p129",
+    "b": "p131"
+  },
+  {
+    "type": "parent-child",
+    "a": "p128",
+    "b": "p132"
+  },
+  {
+    "type": "parent-child",
+    "a": "p129",
+    "b": "p132"
+  },
+  {
+    "type": "parent-child",
+    "a": "p128",
+    "b": "p133"
+  },
+  {
+    "type": "parent-child",
+    "a": "p129",
+    "b": "p133"
+  },
+  {
+    "type": "parent-child",
+    "a": "p128",
+    "b": "p134"
+  },
+  {
+    "type": "parent-child",
+    "a": "p129",
+    "b": "p134"
+  },
+  {
+    "type": "parent-child",
+    "a": "p128",
+    "b": "p135"
+  },
+  {
+    "type": "parent-child",
+    "a": "p129",
+    "b": "p135"
+  },
+  {
+    "type": "parent-child",
+    "a": "p128",
+    "b": "p136"
+  },
+  {
+    "type": "parent-child",
+    "a": "p129",
+    "b": "p136"
+  },
+  {
+    "type": "parent-child",
+    "a": "p128",
+    "b": "p137"
+  },
+  {
+    "type": "parent-child",
+    "a": "p129",
+    "b": "p137"
+  },
+  {
+    "type": "parent-child",
+    "a": "p128",
+    "b": "p138"
+  },
+  {
+    "type": "parent-child",
+    "a": "p129",
+    "b": "p138"
+  },
+  {
+    "type": "parent-child",
+    "a": "p128",
+    "b": "p139"
+  },
+  {
+    "type": "parent-child",
+    "a": "p129",
+    "b": "p139"
+  },
+  {
+    "type": "parent-child",
+    "a": "p131",
+    "b": "p140"
+  },
+  {
+    "type": "parent-child",
+    "a": "p131",
+    "b": "p141"
+  },
+  {
+    "type": "spouse",
+    "a": "p142",
+    "b": "p131"
+  },
+  {
+    "type": "parent-child",
+    "a": "p142",
+    "b": "p141"
+  },
+  {
+    "type": "parent-child",
+    "a": "p131",
+    "b": "p143"
+  },
+  {
+    "type": "parent-child",
+    "a": "p142",
+    "b": "p143"
+  },
+  {
+    "type": "sibling",
+    "a": "p143",
+    "b": "p141"
+  },
+  {
+    "type": "sibling",
+    "a": "p143",
+    "b": "p140"
+  },
+  {
+    "type": "parent-child",
+    "a": "p141",
+    "b": "p144"
+  },
+  {
+    "type": "spouse",
+    "a": "p145",
+    "b": "p141"
+  },
+  {
+    "type": "parent-child",
+    "a": "p142",
+    "b": "p140"
+  },
+  {
+    "type": "parent-child",
+    "a": "p145",
+    "b": "p144"
+  },
+  {
+    "type": "parent-child",
+    "a": "p126",
+    "b": "p146"
+  },
+  {
+    "type": "parent-child",
+    "a": "p149",
+    "b": "p100"
+  },
+  {
+    "type": "parent-child",
+    "a": "p150",
+    "b": "p149"
+  },
+  {
+    "type": "parent-child",
+    "a": "p151",
+    "b": "p150"
+  },
+  {
+    "type": "parent-child",
+    "a": "p152",
+    "b": "p151"
+  },
+  {
+    "type": "spouse",
+    "a": "p153",
+    "b": "p152"
+  },
+  {
+    "type": "parent-child",
+    "a": "p153",
+    "b": "p151"
+  },
+  {
+    "type": "spouse",
+    "a": "p154",
+    "b": "p151"
+  },
+  {
+    "type": "parent-child",
+    "a": "p154",
+    "b": "p150"
+  },
+  {
+    "type": "parent-child",
+    "a": "p155",
+    "b": "p149"
+  },
+  {
+    "type": "spouse",
+    "a": "p155",
+    "b": "p150"
+  },
+  {
+    "type": "parent-child",
+    "a": "p155",
+    "b": "p156"
+  },
+  {
+    "type": "parent-child",
+    "a": "p150",
+    "b": "p156"
+  },
+  {
+    "type": "parent-child",
+    "a": "p150",
+    "b": "p158"
+  },
+  {
+    "type": "parent-child",
+    "a": "p155",
+    "b": "p158"
+  },
+  {
+    "type": "parent-child",
+    "a": "p150",
+    "b": "p159"
+  },
+  {
+    "type": "parent-child",
+    "a": "p155",
+    "b": "p159"
+  },
+  {
+    "type": "parent-child",
+    "a": "p150",
+    "b": "p160"
+  },
+  {
+    "type": "parent-child",
+    "a": "p155",
+    "b": "p160"
+  },
+  {
+    "type": "parent-child",
+    "a": "p150",
+    "b": "p161"
+  },
+  {
+    "type": "parent-child",
+    "a": "p155",
+    "b": "p161"
+  },
+  {
+    "type": "parent-child",
+    "a": "p150",
+    "b": "p162"
+  },
+  {
+    "type": "parent-child",
+    "a": "p155",
+    "b": "p162"
+  },
+  {
+    "type": "parent-child",
+    "a": "p151",
+    "b": "p163"
+  },
+  {
+    "type": "parent-child",
+    "a": "p154",
+    "b": "p163"
+  },
+  {
+    "type": "parent-child",
+    "a": "p160",
+    "b": "p164"
+  },
+  {
+    "type": "spouse",
+    "a": "p166",
+    "b": "p149"
+  },
+  {
+    "type": "parent-child",
+    "a": "p166",
+    "b": "p100"
+  },
+  {
+    "type": "parent-child",
+    "a": "p166",
+    "b": "p167"
+  },
+  {
+    "type": "parent-child",
+    "a": "p149",
+    "b": "p167"
+  },
+  {
+    "type": "parent-child",
+    "a": "p166",
+    "b": "p168"
+  },
+  {
+    "type": "parent-child",
+    "a": "p149",
+    "b": "p168"
+  },
+  {
+    "type": "parent-child",
+    "a": "p166",
+    "b": "p169"
+  },
+  {
+    "type": "parent-child",
+    "a": "p149",
+    "b": "p169"
+  },
+  {
+    "type": "parent-child",
+    "a": "p149",
+    "b": "p170"
+  },
+  {
+    "type": "parent-child",
+    "a": "p166",
+    "b": "p170"
+  },
+  {
+    "type": "spouse",
+    "a": "p171",
+    "b": "p167"
+  },
+  {
+    "type": "spouse",
+    "a": "p172",
+    "b": "p168"
+  },
+  {
+    "type": "spouse",
+    "a": "p173",
+    "b": "p170"
+  }
+];
+const PRESET_ROOTORDER = ["p114", "p119", "p152", "p123", "p128"];
+
+// Mutable working copies — what's actually rendered. Starts as the preset;
+// Import replaces these, and "My family tree" restores the preset.
+let people = JSON.parse(JSON.stringify(PRESET_PEOPLE));
+let relations = JSON.parse(JSON.stringify(PRESET_RELATIONS));
+let rootOrder = JSON.parse(JSON.stringify(PRESET_ROOTORDER));
+
+function personById(id){ return people.find(p => p.id === id); }
+
+// ============================================================
+// AUTO-LAYOUT ENGINE (identical to the editable builder)
+// ============================================================
+const CARD_W = 190, COL_STEP = 280, ROW_STEP = 360, EXTRA_GAP = 280, TOP_MARGIN = 90;
+
+function computeLayout(){
+  const genUF = {};
+  people.forEach(p => genUF[p.id] = p.id);
+  function gfind(x){ if(genUF[x] !== x) genUF[x] = gfind(genUF[x]); return genUF[x]; }
+  function gunion(a,b){ const ra=gfind(a), rb=gfind(b); if(ra!==rb) genUF[ra]=rb; }
+  relations.forEach(r => { if(r.type === 'spouse' || r.type === 'sibling') gunion(r.a, r.b); });
+
+  const genGroupIds = new Set(people.map(p => gfind(p.id)));
+  const genGroupParents = {};
+  genGroupIds.forEach(g => genGroupParents[g] = new Set());
+  relations.forEach(r => {
+    if(r.type === 'parent-child'){
+      const pg = gfind(r.a), cg = gfind(r.b);
+      if(pg !== cg) genGroupParents[cg].add(pg);
+    }
+  });
+  const fallbackMemo = {}, fbVisiting = new Set();
+  function calcFallbackGen(g){
+    if(fallbackMemo[g] !== undefined) return fallbackMemo[g];
+    if(fbVisiting.has(g)) return 0;
+    fbVisiting.add(g);
+    let maxParentGen = -1;
+    genGroupParents[g].forEach(pg => { const pgGen = calcFallbackGen(pg); if(pgGen > maxParentGen) maxParentGen = pgGen; });
+    fbVisiting.delete(g);
+    return fallbackMemo[g] = maxParentGen + 1;
+  }
+  genGroupIds.forEach(g => calcFallbackGen(g));
+  function fallbackPersonGen(pid){ return fallbackMemo[gfind(pid)]; }
+
+  const youPerson = people.find(p => p.isYou);
+  let personGen;
+  if(youPerson){
+    const offset = {};
+    offset[youPerson.id] = 0;
+    const queue = [youPerson.id];
+    while(queue.length){
+      const id = queue.shift();
+      const cur = offset[id];
+      relations.forEach(r => {
+        if(r.type === 'parent-child'){
+          if(r.b === id && !(r.a in offset)){ offset[r.a] = cur + 1; queue.push(r.a); }
+          if(r.a === id && !(r.b in offset)){ offset[r.b] = cur - 1; queue.push(r.b); }
+        } else if(r.type === 'spouse' || r.type === 'sibling'){
+          if(r.a === id && !(r.b in offset)){ offset[r.b] = cur; queue.push(r.b); }
+          if(r.b === id && !(r.a in offset)){ offset[r.a] = cur; queue.push(r.a); }
+        }
+      });
+    }
+    const reachedOffsets = Object.values(offset);
+    const maxOffset = reachedOffsets.length ? Math.max(...reachedOffsets) : 0;
+    personGen = (pid) => (pid in offset) ? (maxOffset - offset[pid]) : fallbackPersonGen(pid);
+  } else {
+    personGen = fallbackPersonGen;
+  }
+
+  const famUF = {};
+  people.forEach(p => famUF[p.id] = p.id);
+  function ffind(x){ if(famUF[x] !== x) famUF[x] = ffind(famUF[x]); return famUF[x]; }
+  function funion(a,b){ const ra=ffind(a), rb=ffind(b); if(ra!==rb) famUF[ra]=rb; }
+  relations.forEach(r => { if(r.type === 'spouse') funion(r.a, r.b); });
+
+  const groups = {};
+  people.forEach(p => { const r = ffind(p.id); (groups[r] = groups[r] || []).push(p.id); });
+
+  const insertionIndex = {};
+  people.forEach((p,i) => insertionIndex[p.id] = i);
+
+  const anchorMember = {};
+  Object.keys(groups).forEach(g => {
+    anchorMember[g] = groups[g].slice().sort((a,b) => insertionIndex[a]-insertionIndex[b])[0];
+  });
+
+  const parentEdges = {};
+  Object.keys(groups).forEach(g => { parentEdges[g] = new Set(); });
+  relations.forEach(r => {
+    if(r.type === 'parent-child'){
+      const pg = ffind(r.a), cg = ffind(r.b);
+      if(pg !== cg && r.b === anchorMember[cg]) parentEdges[cg].add(pg);
+    }
+  });
+
+  const groupGen = {};
+  Object.keys(groups).forEach(g => { groupGen[g] = personGen(groups[g][0]); });
+
+  const aboveLabels = ['Your generation', "Parents' generation", "Grandparents' generation", "Great-grandparents' generation", "Great-great-grandparents' generation"];
+  const belowLabels = ['Your generation', "Children's generation", "Grandchildren's generation", "Great-grandchildren's generation"];
+  const youGen = youPerson ? personGen(youPerson.id) : null;
+  function genLabel(g){
+    if(youGen === null) return 'Generation ' + (g + 1);
+    const diff = youGen - g;
+    if(diff >= 0 && diff < aboveLabels.length) return aboveLabels[diff];
+    if(diff < 0 && -diff < belowLabels.length) return belowLabels[-diff];
+    return 'Generation ' + (g + 1);
+  }
+
+  const primaryParent = {};
+  Object.keys(groups).forEach(g => {
+    const parents = Array.from(parentEdges[g]);
+    primaryParent[g] = parents.length > 0 ? parents[0] : null;
+  });
+  const treeChildren = {};
+  Object.keys(groups).forEach(g => { treeChildren[g] = []; });
+  Object.keys(groups).forEach(g => { if(primaryParent[g]) treeChildren[primaryParent[g]].push(g); });
+  Object.keys(treeChildren).forEach(g => {
+    treeChildren[g].sort((a,b) =>
+      Math.min(...groups[a].map(id=>insertionIndex[id])) - Math.min(...groups[b].map(id=>insertionIndex[id]))
+    );
+  });
+
+  const roots = Object.keys(groups).filter(g => !primaryParent[g]);
+  function rootFallbackIndex(g){ return Math.min(...groups[g].map(id=>insertionIndex[id])); }
+  roots.sort((a,b) => {
+    const ia = rootOrder.indexOf(anchorMember[a]);
+    const ib = rootOrder.indexOf(anchorMember[b]);
+    if(ia === -1 && ib === -1) return rootFallbackIndex(a) - rootFallbackIndex(b);
+    if(ia === -1) return 1;
+    if(ib === -1) return -1;
+    return ia - ib;
+  });
+
+  const bioParentsOf = {};
+  people.forEach(p => bioParentsOf[p.id] = new Set());
+  relations.forEach(r => { if(r.type === 'parent-child') bioParentsOf[r.b].add(r.a); });
+
+  function findSiblingBridge(leftG, rightG){
+    const leftSet = new Set(groups[leftG]), rightSet = new Set(groups[rightG]);
+    for(const r of relations){
+      if(r.type !== 'sibling') continue;
+      if(leftSet.has(r.a) && rightSet.has(r.b)) return [r.a, r.b];
+      if(leftSet.has(r.b) && rightSet.has(r.a)) return [r.b, r.a];
+    }
+    for(const a of groups[leftG]){
+      if(bioParentsOf[a].size === 0) continue;
+      for(const b of groups[rightG]){
+        if(bioParentsOf[b].size === 0) continue;
+        for(const pa of bioParentsOf[a]) if(bioParentsOf[b].has(pa)) return [a, b];
+      }
+    }
+    return null;
+  }
+
+  const memberOrder = {};
+  Object.keys(groups).forEach(g => {
+    memberOrder[g] = groups[g].slice().sort((a,b)=>insertionIndex[a]-insertionIndex[b]);
+  });
+
+  function orientAdjacentPairs(orderedGroups, alignMap){
+    for(let i = 0; i < orderedGroups.length - 1; i++){
+      const leftG = orderedGroups[i], rightG = orderedGroups[i+1];
+      const bridge = findSiblingBridge(leftG, rightG);
+      if(!bridge) continue;
+      const [siblingInLeft, siblingInRight] = bridge;
+      memberOrder[leftG] = [...memberOrder[leftG].filter(id => id !== siblingInLeft), siblingInLeft];
+      memberOrder[rightG] = [siblingInRight, ...memberOrder[rightG].filter(id => id !== siblingInRight)];
+      if(alignMap){ alignMap[leftG] = 'right'; alignMap[rightG] = 'left'; }
+    }
+  }
+
+  const rootAlign = {};
+  orientAdjacentPairs(roots, rootAlign);
+  Object.keys(treeChildren).forEach(g => {
+    if(treeChildren[g].length > 1) orientAdjacentPairs(treeChildren[g]);
+  });
+
+  function ownWidth(g){ return (groups[g].length - 1) * COL_STEP + CARD_W; }
+
+  const widthMemo = {};
+  function subtreeWidth(g){
+    if(widthMemo[g] !== undefined) return widthMemo[g];
+    const kids = treeChildren[g];
+    if(kids.length === 0) return widthMemo[g] = ownWidth(g);
+    const childrenTotal = kids.reduce((s,cg) => s + subtreeWidth(cg), 0) + (kids.length - 1) * COL_STEP;
+    return widthMemo[g] = Math.max(ownWidth(g), childrenTotal);
+  }
+  roots.forEach(subtreeWidth);
+
+  const groupX = {};
+  function positionSubtree(g, xStart, biasEdge){
+    const w = subtreeWidth(g), ow = ownWidth(g);
+    let offset;
+    if(biasEdge === 'right') offset = w - ow;
+    else if(biasEdge === 'left') offset = 0;
+    else offset = (w - ow) / 2;
+    groupX[g] = xStart + offset;
+    let cx = xStart;
+    treeChildren[g].forEach(cg => {
+      positionSubtree(cg, cx, null);
+      cx += subtreeWidth(cg) + COL_STEP;
+    });
+  }
+
+  function isIsolated(g){
+    if(groups[g].length !== 1) return false;
+    const pid = groups[g][0];
+    return !relations.some(r => r.a === pid || r.b === pid);
+  }
+
+  let rootX = 0;
+  roots.forEach((rootG, idx) => {
+    positionSubtree(rootG, rootX, rootAlign[rootG] || null);
+    const nextRoot = roots[idx+1];
+    const gap = (nextRoot && isIsolated(rootG) && isIsolated(nextRoot)) ? (COL_STEP - CARD_W) : EXTRA_GAP;
+    rootX += subtreeWidth(rootG) + gap;
+  });
+
+  const personPos = {};
+  Object.keys(groups).forEach(g => {
+    const members = memberOrder[g];
+    members.forEach((pid, mi) => {
+      personPos[pid] = { x: groupX[g] + mi*COL_STEP, y: groupGen[g]*ROW_STEP + TOP_MARGIN };
+    });
+  });
+
+  const rowMinX = {};
+  Object.keys(groups).forEach(g => {
+    const gen = groupGen[g];
+    rowMinX[gen] = rowMinX[gen] === undefined ? groupX[g] : Math.min(rowMinX[gen], groupX[g]);
+  });
+  const rowLabels = Object.keys(rowMinX).map(Number).sort((a,b)=>a-b)
+    .map(gen => ({ x: rowMinX[gen], y: gen*ROW_STEP + TOP_MARGIN, label: genLabel(gen) }));
+
+  const PAD_X = 34, PAD_TOP = 26, PAD_BOTTOM = 34;
+  const familyBoxes = [];
+  roots.forEach(rootG => {
+    const memberIds = [];
+    const queue = [rootG];
+    while(queue.length){
+      const g = queue.shift();
+      memberIds.push(...groups[g]);
+      treeChildren[g].forEach(cg => queue.push(cg));
+    }
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    memberIds.forEach(pid => {
+      const pos = personPos[pid];
+      x0 = Math.min(x0, pos.x); x1 = Math.max(x1, pos.x + CARD_W);
+      y0 = Math.min(y0, pos.y); y1 = Math.max(y1, pos.y + 118);
+    });
+    if(x0 === Infinity) return;
+    familyBoxes.push({ x0: x0-PAD_X, y0: y0-PAD_TOP, x1: x1+PAD_X, y1: y1+PAD_BOTTOM });
+  });
+
+  return {personPos, familyBoxes, rowLabels};
+}
+
+// ============================================================
+// RENDERING
+// ============================================================
+const canvas = document.getElementById('canvas');
+const stage = document.getElementById('stage');
+const svg = document.getElementById('links');
+
+function natClass(nationality){
+  const n = (nationality||'').toLowerCase();
+  const isItalian = n.includes('ital');
+  const isHungarian = n.includes('hungar');
+  if(isItalian && isHungarian) return 'nat-mixed';
+  if(isItalian) return 'nat-italian';
+  if(isHungarian) return 'nat-hungarian';
+  return '';
+}
+
+function fmtDate(iso){
+  if(!iso) return null;
+  const d = new Date(iso + 'T00:00:00');
+  if(isNaN(d.getTime())) return iso;
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear();
+}
+function fmtMonthYear(ym){
+  if(!ym) return null;
+  const [y, m] = ym.split('-').map(Number);
+  if(!y || !m) return ym;
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return months[m-1] + ' ' + y;
+}
+function fmtBirthDeath(p){
+  const parts = [];
+  if(p.birthDate) parts.push('b. ' + fmtDate(p.birthDate));
+  else if(p.birthMonthYear) parts.push('b. ' + fmtMonthYear(p.birthMonthYear));
+  else if(p.birthYear) parts.push('b. ' + p.birthYear);
+  else parts.push('b. ?');
+  if(p.deathDate) parts.push('d. ' + fmtDate(p.deathDate));
+  else if(p.deathMonthYear) parts.push('d. ' + fmtMonthYear(p.deathMonthYear));
+  else if(p.deathYear) parts.push('d. ' + p.deathYear);
+  else if(p.deceased) parts.push('d. ?');
+  return parts.join(' · ');
+}
+function escapeHtml(s){
+  return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+let currentFamilyBoxes = [];
+let currentRowLabels = [];
+
+function render(){
+  const { personPos, familyBoxes, rowLabels } = computeLayout();
+  currentFamilyBoxes = familyBoxes;
+  currentRowLabels = rowLabels;
+
+  let maxX = 800, maxY = 800;
+  Object.values(personPos).forEach(pos => { maxX = Math.max(maxX, pos.x + CARD_W + 200); maxY = Math.max(maxY, pos.y + 400); });
+  canvas.style.width = maxX + 'px'; canvas.style.height = maxY + 'px';
+  svg.setAttribute('width', maxX); svg.setAttribute('height', maxY);
+  svg.style.width = maxX + 'px'; svg.style.height = maxY + 'px';
+
+  canvas.querySelectorAll('.card').forEach(el => el.remove());
+
+  people.forEach(p => {
+    const pos = personPos[p.id] || {x:0,y:0};
+    p._x = pos.x; p._y = pos.y;
+    const el = document.createElement('div');
+    el.className = 'card ' + natClass(p.nationality) + (p.isYou ? ' you' : '') + (p.deceased || p.deathYear || p.deathMonthYear || p.deathDate ? ' deceased' : '');
+    el.style.left = pos.x + 'px';
+    el.style.top = pos.y + 'px';
+    el.dataset.id = p.id;
+    el.innerHTML = `
+      <div class="name">${escapeHtml(p.name)}${(p.deathYear || p.deathMonthYear || p.deathDate || p.deceased) ? ' <span style="font-weight:400;">✝</span>' : ''}</div>
+      <div class="rel">${escapeHtml(p.nationality || 'Nationality unknown')}</div>
+      <div class="meta">
+        ${fmtBirthDeath(p)}
+        ${p.job ? `<span class="job">${escapeHtml(p.job)}</span>` : ''}
+      </div>
+    `;
+    canvas.appendChild(el);
+    p._el = el;
+  });
+
+  drawLinks();
+}
+
+function drawLinks(){
+  let content = '';
+
+  currentFamilyBoxes.forEach(b => {
+    const w = b.x1 - b.x0, h = b.y1 - b.y0;
+    content += `<rect x="${b.x0}" y="${b.y0}" width="${w}" height="${h}" rx="14" fill="rgba(228,201,116,0.09)" stroke="rgba(228,201,116,0.55)" stroke-width="2" stroke-dasharray="6,5"/>`;
+  });
+
+  currentRowLabels.forEach(rl => {
+    content += `<text x="${rl.x}" y="${rl.y - 42}" font-family="Segoe UI, sans-serif" font-size="20" font-weight="700" letter-spacing="1" fill="rgba(228,201,116,0.75)" text-transform="uppercase">${escapeHtml(rl.label).toUpperCase()}</text>`;
+  });
+
+  const drawnPairs = new Set();
+  function pairKey(a,b){ return [a,b].sort().join('|'); }
+
+  relations.forEach(r => {
+    const a = personById(r.a), b = personById(r.b);
+    if(!a || !b || a._x === undefined || b._x === undefined) return;
+    const ax = a._x + CARD_W/2, ay = a._y + 55;
+    const bx = b._x + CARD_W/2, by = b._y + 55;
+    if(r.type === 'spouse'){
+      content += `<line x1="${ax}" y1="${ay}" x2="${bx}" y2="${by}" stroke="#c9a227" stroke-width="2.5" opacity="0.8"/>`;
+    } else if(r.type === 'sibling'){
+      content += `<line x1="${ax}" y1="${ay}" x2="${bx}" y2="${by}" stroke="#9aa89a" stroke-width="1.6" stroke-dasharray="5,5" opacity="0.6"/>`;
+      drawnPairs.add(pairKey(r.a, r.b));
+    } else {
+      const midY = (ay+by)/2;
+      content += `<path d="M ${ax} ${ay} C ${ax} ${midY}, ${bx} ${midY}, ${bx} ${by}" stroke="#8a7b58" stroke-width="1.6" fill="none" opacity="0.65"/>`;
+    }
+  });
+
+  const parentsOf = {};
+  people.forEach(p => parentsOf[p.id] = new Set());
+  relations.forEach(r => { if(r.type === 'parent-child') parentsOf[r.b].add(r.a); });
+  const byParentSet = {};
+  people.forEach(p => {
+    const key = Array.from(parentsOf[p.id]).sort().join(',');
+    if(key === '' || p._x === undefined) return;
+    (byParentSet[key] = byParentSet[key] || []).push(p.id);
+  });
+  Object.values(byParentSet).forEach(ids => {
+    if(ids.length < 2) return;
+    const sorted = ids.slice().sort((a,b) => personById(a)._x - personById(b)._x);
+    for(let i = 0; i < sorted.length - 1; i++){
+      const idA = sorted[i], idB = sorted[i+1];
+      if(drawnPairs.has(pairKey(idA, idB))) continue;
+      const a = personById(idA), b = personById(idB);
+      const ax = a._x + CARD_W/2, ay = a._y + 55;
+      const bx = b._x + CARD_W/2, by = b._y + 55;
+      content += `<line x1="${ax}" y1="${ay}" x2="${bx}" y2="${by}" stroke="#9aa89a" stroke-width="1.6" stroke-dasharray="5,5" opacity="0.6"/>`;
+      drawnPairs.add(pairKey(idA, idB));
+    }
+  });
+
+  svg.innerHTML = content;
+}
+
+// ============================================================
+// READ-ONLY INFO PANEL (tap a card)
+// ============================================================
+const infoOverlay = document.getElementById('infoOverlay');
+
+function relLabelFor(personId, r){
+  const other = personById(r.a === personId ? r.b : r.a);
+  if(!other) return null;
+  if(r.type === 'spouse') return 'Spouse/partner: ' + other.name;
+  if(r.type === 'sibling') return 'Sibling: ' + other.name;
+  if(r.type === 'parent-child') return (r.a === personId ? 'Parent of: ' : 'Child of: ') + other.name;
+  return null;
+}
+
+function openInfo(id){
+  const p = personById(id); if(!p) return;
+  document.getElementById('info_name').textContent = p.name || '(unnamed)';
+  document.getElementById('info_rel').textContent = [p.nationality, p.job].filter(Boolean).join(' · ') || 'Details';
+  const relLines = relations
+    .filter(r => r.a === id || r.b === id)
+    .map(r => relLabelFor(id, r))
+    .filter(Boolean);
+  const body = document.getElementById('info_body');
+  body.innerHTML = `
+    <div class="row"><b>Born:</b> ${escapeHtml(fmtBirthDeath(p).split(' · ')[0].replace('b. ',''))}</div>
+    ${(p.deathDate||p.deathMonthYear||p.deathYear||p.deceased) ? `<div class="row"><b>Died:</b> ${escapeHtml(fmtBirthDeath(p).includes('d.') ? fmtBirthDeath(p).split('d. ')[1] : '?')}</div>` : ''}
+    ${relLines.length ? `<div class="row"><b>Relationships</b></div>` + relLines.map(l=>`<div class="row" style="margin-left:8px;">${escapeHtml(l)}</div>`).join('') : ''}
+    ${p.notes ? `<div class="notes">${escapeHtml(p.notes)}</div>` : ''}
+  `;
+  infoOverlay.classList.add('open');
+}
+document.getElementById('closeInfoBtn').onclick = () => infoOverlay.classList.remove('open');
+
+// ============================================================
+// SUGGEST A CHANGE (email — no backend, works from a public link
+// or any static host with no accounts needed)
+// ============================================================
+// TODO: put the tree owner's real email address here before hosting —
+// suggestions are useless until this is filled in.
+const OWNER_EMAIL = "REPLACE_WITH_YOUR_EMAIL@example.com";
+
+const suggestOverlay = document.getElementById('suggestOverlay');
+
+function openSuggest(personName, defaultType){
+  document.getElementById('sg_person').value = personName || '';
+  document.getElementById('sg_type').value = defaultType || '';
+  document.getElementById('sg_details').value = '';
+  document.getElementById('sg_from').value = '';
+  suggestOverlay.classList.add('open');
+}
+
+document.getElementById('suggestAddBtn').onclick = () => openSuggest('', 'New person');
+document.getElementById('suggestEditBtn').onclick = () => {
+  infoOverlay.classList.remove('open');
+  openSuggest(document.getElementById('info_name').textContent, '');
+};
+document.getElementById('closeSuggestBtn').onclick = () => suggestOverlay.classList.remove('open');
+
+document.getElementById('sendSuggestBtn').onclick = () => {
+  const person = document.getElementById('sg_person').value.trim();
+  const type = document.getElementById('sg_type').value;
+  const details = document.getElementById('sg_details').value.trim();
+  const from = document.getElementById('sg_from').value.trim();
+
+  if(!person){ alert('Enter who this is about.'); return; }
+  if(!type){ alert('Choose what kind of change this is.'); return; }
+  if(!details){ alert('Add some details about the change.'); return; }
+
+  const subject = `Family tree suggestion: ${person} — ${type}`;
+  const body =
+    `Person: ${person}\n` +
+    `Type: ${type}\n` +
+    `Details: ${details}\n` +
+    `Suggested by: ${from || '(not given)'}\n`;
+
+  const mailto = `mailto:${bottonidaniel13@gmail.com}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  window.location.href = mailto;
+  suggestOverlay.classList.remove('open');
+};
+
+infoOverlay.addEventListener('click', (e) => { if(e.target === infoOverlay) infoOverlay.classList.remove('open'); });
+
+// ============================================================
+// PAN / ZOOM (view only — no card dragging)
+// ============================================================
+let panX = -30, panY = -30, scale = 0.45;
+const MIN_SCALE = 0.12, MAX_SCALE = 4;
+const OVERZOOM_RESISTANCE = 0.55;
+
+function applyTransform(){
+  canvas.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+  document.getElementById('zoomReadout').textContent = Math.round(scale*100) + '%';
+}
+applyTransform();
+
+function elasticScale(raw){
+  if(raw < MIN_SCALE) return MIN_SCALE - (MIN_SCALE - raw) * OVERZOOM_RESISTANCE;
+  if(raw > MAX_SCALE) return MAX_SCALE + (raw - MAX_SCALE) * OVERZOOM_RESISTANCE;
+  return raw;
+}
+function applyZoomAt(newScaleRaw, screenX, screenY, elastic){
+  const newScale = elastic ? elasticScale(newScaleRaw) : Math.min(MAX_SCALE, Math.max(MIN_SCALE, newScaleRaw));
+  const stageRect = stage.getBoundingClientRect();
+  const canvasX = (screenX - stageRect.left - panX) / scale;
+  const canvasY = (screenY - stageRect.top - panY) / scale;
+  panX = (screenX - stageRect.left) - canvasX * newScale;
+  panY = (screenY - stageRect.top) - canvasY * newScale;
+  scale = newScale;
+  applyTransform();
+}
+
+let bounceRAF = null;
+function cancelBounce(){ if(bounceRAF){ cancelAnimationFrame(bounceRAF); bounceRAF = null; } }
+function bounceBackIfNeeded(anchorX, anchorY){
+  if(scale >= MIN_SCALE && scale <= MAX_SCALE) return;
+  const targetScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale));
+  const stageRect = stage.getBoundingClientRect();
+  const canvasX = (anchorX - stageRect.left - panX) / scale;
+  const canvasY = (anchorY - stageRect.top - panY) / scale;
+  const targetPanX = (anchorX - stageRect.left) - canvasX * targetScale;
+  const targetPanY = (anchorY - stageRect.top) - canvasY * targetScale;
+  const startScale = scale, startPanX = panX, startPanY = panY;
+  const startTime = performance.now();
+  const duration = 260;
+  cancelBounce();
+  function step(now){
+    const t = Math.min(1, (now - startTime) / duration);
+    const ease = 1 - Math.pow(1 - t, 3);
+    scale = startScale + (targetScale - startScale) * ease;
+    panX = startPanX + (targetPanX - startPanX) * ease;
+    panY = startPanY + (targetPanY - startPanY) * ease;
+    applyTransform();
+    bounceRAF = (t < 1) ? requestAnimationFrame(step) : null;
+  }
+  bounceRAF = requestAnimationFrame(step);
+}
+
+let mode = 'idle';
+let panStart = {x:0,y:0}, panOrigin = {x:0,y:0};
+let lastPinchDist = 0, lastPinchMid = {x:0,y:0};
+let tapCandidate = null, tapStartClient = {x:0,y:0};
+
+function dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); }
+function midpoint(a,b){ return {x:(a.x+b.x)/2, y:(a.y+b.y)/2}; }
+
+stage.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  cancelBounce();
+  const touches = e.touches;
+  if(touches.length === 1){
+    const t = touches[0];
+    const cardEl = t.target.closest ? t.target.closest('.card') : null;
+    if(cardEl){
+      tapCandidate = cardEl.dataset.id; tapStartClient = {x:t.clientX, y:t.clientY};
+    } else {
+      tapCandidate = null;
+      mode = 'pan'; stage.classList.add('panning');
+      panStart = {x:t.clientX, y:t.clientY}; panOrigin = {x:panX, y:panY};
+    }
+  } else if(touches.length >= 2){
+    tapCandidate = null;
+    mode = 'pinch'; stage.classList.remove('panning');
+    const p0 = {x:touches[0].clientX, y:touches[0].clientY};
+    const p1 = {x:touches[1].clientX, y:touches[1].clientY};
+    lastPinchDist = dist(p0,p1);
+    lastPinchMid = midpoint(p0,p1);
+  }
+}, {passive:false});
+
+stage.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  const touches = e.touches;
+  if(mode === 'pinch' && touches.length >= 2){
+    const p0 = {x:touches[0].clientX, y:touches[0].clientY};
+    const p1 = {x:touches[1].clientX, y:touches[1].clientY};
+    const newDist = dist(p0,p1), newMid = midpoint(p0,p1);
+    const ratio = newDist / lastPinchDist;
+    const newScale = elasticScale(scale * ratio);
+    const stageRect = stage.getBoundingClientRect();
+    const cx = (lastPinchMid.x - stageRect.left - panX) / scale;
+    const cy = (lastPinchMid.y - stageRect.top - panY) / scale;
+    panX = (newMid.x - stageRect.left) - cx*newScale;
+    panY = (newMid.y - stageRect.top) - cy*newScale;
+    scale = newScale;
+    lastPinchDist = newDist; lastPinchMid = newMid;
+    applyTransform();
+  } else if(mode === 'pan' && touches.length === 1){
+    const t = touches[0];
+    panX = panOrigin.x + (t.clientX - panStart.x);
+    panY = panOrigin.y + (t.clientY - panStart.y);
+    applyTransform();
+  } else if(tapCandidate && touches.length === 1){
+    const t = touches[0];
+    if(dist({x:t.clientX,y:t.clientY}, tapStartClient) > 8) tapCandidate = null;
+  }
+}, {passive:false});
+
+function onTouchEnd(e){
+  e.preventDefault();
+  if(tapCandidate){ openInfo(tapCandidate); tapCandidate = null; }
+  if(mode === 'pinch'){ bounceBackIfNeeded(lastPinchMid.x, lastPinchMid.y); }
+  const remaining = e.touches;
+  if(remaining.length === 0){ mode = 'idle'; stage.classList.remove('panning'); }
+  else if(remaining.length === 1){
+    mode = 'pan'; stage.classList.add('panning');
+    const t = remaining[0];
+    panStart = {x:t.clientX, y:t.clientY}; panOrigin = {x:panX, y:panY};
+  }
+}
+stage.addEventListener('touchend', onTouchEnd, {passive:false});
+stage.addEventListener('touchcancel', onTouchEnd, {passive:false});
+
+let mouseDown = false;
+stage.addEventListener('mousedown', (e) => {
+  mouseDown = true;
+  cancelBounce();
+  const cardEl = e.target.closest('.card');
+  if(cardEl){
+    tapCandidate = cardEl.dataset.id; tapStartClient = {x:e.clientX, y:e.clientY};
+  } else {
+    tapCandidate = null;
+    mode = 'pan'; stage.classList.add('panning');
+    panStart = {x:e.clientX, y:e.clientY}; panOrigin = {x:panX, y:panY};
+  }
+});
+window.addEventListener('mousemove', (e) => {
+  if(!mouseDown) return;
+  if(mode === 'pan'){
+    panX = panOrigin.x + (e.clientX - panStart.x);
+    panY = panOrigin.y + (e.clientY - panStart.y);
+    applyTransform();
+  } else if(tapCandidate){
+    if(dist({x:e.clientX,y:e.clientY}, tapStartClient) > 8) tapCandidate = null;
+  }
+});
+window.addEventListener('mouseup', () => {
+  mouseDown = false;
+  if(tapCandidate){ openInfo(tapCandidate); tapCandidate = null; }
+  mode = 'idle'; stage.classList.remove('panning');
+});
+
+let wheelMode = null;
+let wheelIdleTimer = null;
+let lastWheelClient = {x:0, y:0};
+
+stage.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  cancelBounce();
+  lastWheelClient = {x:e.clientX, y:e.clientY};
+
+  if(wheelIdleTimer) clearTimeout(wheelIdleTimer);
+  wheelIdleTimer = setTimeout(() => {
+    wheelMode = null;
+    bounceBackIfNeeded(lastWheelClient.x, lastWheelClient.y);
+  }, 150);
+
+  if(wheelMode === null){
+    wheelMode = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? 'pan' : 'zoom';
+  }
+
+  if(wheelMode === 'pan'){
+    panX -= e.deltaX;
+    applyTransform();
+  } else {
+    const delta = Math.max(-0.05, Math.min(0.05, -e.deltaY * 0.0025));
+    applyZoomAt(scale + delta, e.clientX, e.clientY, true);
+  }
+}, {passive:false});
+
+document.getElementById('zoomInBtn').onclick = () => {
+  const r = stage.getBoundingClientRect();
+  applyZoomAt(scale + 0.1, r.left + r.width/2, r.top + r.height/2, false);
+};
+document.getElementById('zoomOutBtn').onclick = () => {
+  const r = stage.getBoundingClientRect();
+  applyZoomAt(scale - 0.1, r.left + r.width/2, r.top + r.height/2, false);
+};
+document.getElementById('resetViewBtn').onclick = () => { panX=-30; panY=-30; scale=0.45; applyTransform(); };
+document.getElementById('autoArrangeBtn').onclick = () => { render(); };
+
+document.getElementById('importBtn').onclick = () => {
+  document.getElementById('importText').value = '';
+  document.getElementById('importOverlay').classList.add('open');
+};
+document.getElementById('closeImportBtn').onclick = () => document.getElementById('importOverlay').classList.remove('open');
+
+document.getElementById('loadImportTextBtn').onclick = () => {
+  const text = document.getElementById('importText').value.trim();
+  if(!text){ alert('Paste the JSON text first.'); return; }
+  try{
+    const parsed = JSON.parse(text);
+    if(!parsed.people || !parsed.relations) throw new Error('Missing people or relations.');
+    people = parsed.people;
+    relations = parsed.relations;
+    rootOrder = parsed.rootOrder || [];
+    document.getElementById('importOverlay').classList.remove('open');
+    render();
+  }catch(err){
+    alert('Could not read that text: ' + err.message);
+  }
+};
+
+document.getElementById('loadPresetBtn').onclick = () => {
+  people = JSON.parse(JSON.stringify(PRESET_PEOPLE));
+  relations = JSON.parse(JSON.stringify(PRESET_RELATIONS));
+  rootOrder = JSON.parse(JSON.stringify(PRESET_ROOTORDER));
+  render();
+};
+
+render();
+</script>
+</body>
+</html>
