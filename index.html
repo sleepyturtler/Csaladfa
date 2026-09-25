@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Bottoni–László Family Tree</title>
+<title>Családfa</title>
 <style>
   :root{
     --ink:#132821;
@@ -142,16 +142,16 @@
 <body>
 
 <header>
-  <div class="title">Bottoni · László<small>Family record — view only</small></div>
+  <div class="title">Családfa<small>Megtekinő verzió</small></div>
   <div class="toolbar">
-    <button id="autoArrangeBtn">Auto-arrange</button>
-    <button id="zoomOutBtn">− Zoom</button>
+    <button id="autoArrangeBtn">Auto-Elrendezés</button>
+    <button id="zoomOutBtn">− Kicsinyítés</button>
     <span class="zoom-readout" id="zoomReadout">45%</span>
-    <button id="zoomInBtn">+ Zoom</button>
-    <button id="resetViewBtn">Reset view</button>
-    <button id="importBtn">Import JSON</button>
-    <button id="loadPresetBtn">My family tree</button>
-    <button id="suggestAddBtn">Suggest a missing person</button>
+    <button id="zoomInBtn">+ Nagyítás</button>
+    <button id="resetViewBtn">Nézet helyreállítása</button>
+    <button id="importBtn">JSON Importálása</button>
+    <button id="loadPresetBtn">Az én családfám</button>
+    <button id="suggestAddBtn">Hiányzó személy hozzáadása</button>
   </div>
 </header>
 
@@ -162,73 +162,72 @@
 </div>
 
 <div class="legend">
-  <span><span class="dot" style="background:var(--paternal)"></span>Italian</span>
-  <span><span class="dot" style="background:var(--maternal)"></span>Hungarian</span>
-  <span><span class="dot" style="background:linear-gradient(to right, var(--paternal) 50%, var(--maternal) 50%)"></span>Mixed heritage</span>
-  <span><span class="dot" style="background:var(--gold)"></span>Other / unspecified</span>
+  <span><span class="dot" style="background:var(--paternal)"></span>Olasz</span>
+  <span><span class="dot" style="background:var(--maternal)"></span>Magyar</span>
+  <span><span class="dot" style="background:linear-gradient(to right, var(--paternal) 50%, var(--maternal) 50%)"></span>Olasz és Magyar</span>
+  <span><span class="dot" style="background:var(--gold)"></span>Más / Nem ismert</span>
 </div>
 
-<div class="hint-toast">Tap a card for details. Drag empty space to pan. Pinch, scroll, or use the buttons to zoom.</div>
+<div class="hint-toast">Kattints egy kártyára több adatért. A mozgáshoz nyomj egy üres helyre. Az ujjaiddal vagy a gombokkal tudsz nagyítani.</div>
 
 <div class="overlay" id="infoOverlay">
   <div class="modal">
     <h2 id="info_name"></h2>
     <div class="sub" id="info_rel"></div>
     <div id="info_body"></div>
-    <button class="btn btn-secondary" id="suggestEditBtn" style="width:100%; margin-top:10px;">Suggest a change to this person</button>
-    <button class="close-btn" id="closeInfoBtn">Close</button>
+    <button class="btn btn-secondary" id="suggestEditBtn" style="width:100%; margin-top:10px;">Ajánlj egy módosítást</button>
+    <button class="close-btn" id="closeInfoBtn">Bezárás</button>
   </div>
 </div>
 
 <div class="overlay" id="suggestOverlay">
   <div class="modal">
-    <h2>Suggest a change</h2>
+    <h2>Ajánlj egy módosítást</h2>
     <p style="font-family:'Segoe UI', sans-serif; font-size:0.82em; color:#5a4d30; margin:8px 0 14px;">
-      This opens your email app with the details filled in — nothing is submitted automatically, and nothing changes here until the tree's owner reviews it and updates the tree themselves.
-    </p>
+      Ez megnyitja az email appodat az adatokkal előre beírva.
     <div class="field">
-      <label>Person</label>
+      <label>SZemély</label>
       <input type="text" id="sg_person" placeholder="e.g. Stefano Bottoni, or a new person's name">
     </div>
     <div class="field">
-      <label>What kind of change?</label>
+      <label>Milyen módosítás?</label>
       <select id="sg_type">
         <option value="" disabled selected>— choose —</option>
         <option value="New person">Add a missing person</option>
-        <option value="Name">Fix/change name</option>
-        <option value="Nationality">Nationality</option>
-        <option value="Job">Job / occupation</option>
-        <option value="Birth">Birth date</option>
-        <option value="Death">Death date</option>
-        <option value="Relationship">Add/fix a relationship</option>
-        <option value="Other">Other</option>
+        <option value="Name">Név megváltoztatása</option>
+        <option value="Nationality">Származás</option>
+        <option value="Job">Munka</option>
+        <option value="Birth">Születési év</option>
+        <option value="Death">Haláli év</option>
+        <option value="Relationship">Kapcsolat más személlyel</option>
+        <option value="Other">Valami más</option>
       </select>
     </div>
     <div class="field">
-      <label>Details</label>
-      <textarea id="sg_details" placeholder="What should it say, and any relationships (parents, spouse, kids) if this is a new person."></textarea>
+      <label>A módosítás szövege</label>
+      <textarea id="sg_details" placeholder="Javított adat"></textarea>
     </div>
     <div class="field">
-      <label>Your name</label>
-      <input type="text" id="sg_from" placeholder="So they know who suggested it">
+      <label>A te neved</label>
+      <input type="text" id="sg_from" placeholder="Hogy a szerkesztő tudja ki ajánlotta">
     </div>
     <div class="modal-actions">
-      <button class="btn btn-primary" id="sendSuggestBtn">Open email to send</button>
-      <button class="btn btn-secondary" id="closeSuggestBtn">Cancel</button>
+      <button class="btn btn-primary" id="sendSuggestBtn">Elküldés</button>
+      <button class="btn btn-secondary" id="closeSuggestBtn">Visszavonás</button>
     </div>
   </div>
 </div>
 
 <div class="overlay" id="importOverlay">
   <div class="modal">
-    <h2>Import data</h2>
+    <h2>Adatok betöltése</h2>
     <p style="font-family:'Segoe UI', sans-serif; font-size:0.82em; color:#5a4d30; margin:8px 0 14px;">
-      Paste JSON exported from the family tree builder to update what this page shows. Nothing is saved anywhere — reloading the page always brings back your family tree preset.
+      JSON betöltése a családfa készítőből, semmi nem lesz lementve, az ablak újratöltése mindig az alap családfához fog visszavinni
     </p>
     <textarea id="importText" class="import-textarea" placeholder="Paste JSON here…"></textarea>
     <div class="modal-actions">
-      <button class="btn btn-primary" id="loadImportTextBtn">Load</button>
-      <button class="btn btn-secondary" id="closeImportBtn">Cancel</button>
+      <button class="btn btn-primary" id="loadImportTextBtn">Betöltés</button>
+      <button class="btn btn-secondary" id="closeImportBtn">Visszavonás</button>
     </div>
   </div>
 </div>
@@ -245,7 +244,7 @@ const PRESET_PEOPLE = [
     "nationality": "Italian",
     "birthYear": null,
     "deathYear": null,
-    "job": "Banker",
+    "job": "Banki dolgozó, nyugdíjas",
     "notes": "",
     "isYou": false,
     "birthDate": "1946-11-16",
@@ -282,7 +281,7 @@ const PRESET_PEOPLE = [
     "birthYear": 1958,
     "deathYear": null,
     "job": "Informatikus a BKK-nál",
-    "notes": "Kálmán's wife",
+    "notes": "",
     "isYou": false,
     "birthDate": null,
     "deathDate": null
@@ -294,7 +293,7 @@ const PRESET_PEOPLE = [
     "birthYear": 1985,
     "deathYear": null,
     "job": "Informatikus",
-    "notes": "Kálmán & Mónika's son",
+    "notes": "",
     "isYou": false,
     "birthDate": null,
     "deathDate": null
@@ -306,7 +305,7 @@ const PRESET_PEOPLE = [
     "birthYear": 1991,
     "deathYear": null,
     "job": "Csellóművész",
-    "notes": "Gábor's wife — surname unknown",
+    "notes": "",
     "isYou": false,
     "birthDate": null,
     "deathDate": null
@@ -318,8 +317,7 @@ const PRESET_PEOPLE = [
     "birthYear": 1982,
     "deathYear": 2024,
     "job": "",
-    "notes": "Kálmán & Mónika's 2nd son — name not yet known",
-    "isYou": false,
+    "notes": "
     "birthDate": null,
     "deathDate": null
   },
@@ -330,17 +328,17 @@ const PRESET_PEOPLE = [
     "birthYear": 2025,
     "deathYear": null,
     "job": "",
-    "notes": "Gábor's son",
+    "notes": "",
     "isYou": false
   },
   {
     "id": "beatrice",
     "name": "Beatrice Bottoni",
     "nationality": "Italian",
-    "birthYear": 1988,
+    "birthYear": null,
     "deathYear": null,
     "job": "Analyst for an E-commerce company",
-    "notes": "Born Budapest, lives in Milan",
+    "notes": "",
     "isYou": false,
     "birthDate": "1988-06-12",
     "deathDate": null
@@ -352,7 +350,7 @@ const PRESET_PEOPLE = [
     "birthYear": null,
     "deathYear": null,
     "job": "Strip process engineer, Tenova (Milan)",
-    "notes": "Lives in Milan",
+    "notes": "",
     "isYou": false,
     "birthDate": "1983-12-21",
     "deathDate": null
@@ -361,7 +359,7 @@ const PRESET_PEOPLE = [
     "id": "pietro",
     "name": "Pietro Sghirlanzoni",
     "nationality": "Italian",
-    "birthYear": 2021,
+    "birthYear": null,
     "deathYear": null,
     "job": "",
     "notes": "",
@@ -395,12 +393,12 @@ const PRESET_PEOPLE = [
   },
   {
     "id": "reka",
-    "name": "László Réka",
+    "name": "Bottoni-László Réka",
     "nationality": "Hungarian",
     "birthYear": null,
     "deathYear": null,
-    "job": "EIT employee",
-    "notes": "Birth year approximate",
+    "job": "EIT",
+    "notes": "",
     "isYou": false,
     "birthDate": "1981-01-08",
     "deathDate": null
@@ -413,7 +411,7 @@ const PRESET_PEOPLE = [
     "deathYear": null,
     "job": "Student",
     "notes": "",
-    "isYou": true,
+    "isYou": false,
     "birthDate": "2011-08-25",
     "deathDate": null
   },
@@ -436,7 +434,7 @@ const PRESET_PEOPLE = [
     "birthYear": 1940,
     "deathYear": 2025,
     "job": "",
-    "notes": "Exact birth year unknown",
+    "notes": "",
     "isYou": false,
     "birthDate": null,
     "deathDate": null
@@ -448,7 +446,7 @@ const PRESET_PEOPLE = [
     "birthYear": 1943,
     "deathYear": null,
     "job": "",
-    "notes": "Exact birth year unknown",
+    "notes": "",
     "isYou": false,
     "birthDate": null,
     "deathDate": null
@@ -460,8 +458,10 @@ const PRESET_PEOPLE = [
     "birthYear": null,
     "deathYear": null,
     "job": "",
-    "notes": "Réka's sister",
+    "notes": "",
     "isYou": false
+    "birthDate": null,
+    "deathDate": null
   },
   {
     "id": "zoli",
@@ -472,6 +472,8 @@ const PRESET_PEOPLE = [
     "job": "",
     "notes": "Emőke's husband",
     "isYou": false
+    "birthDate": null,
+    "deathDate": null
   },
   {
     "id": "zalan",
@@ -482,6 +484,8 @@ const PRESET_PEOPLE = [
     "job": "",
     "notes": "",
     "isYou": false
+    "birthDate": null,
+    "deathDate": null
   },
   {
     "id": "henrietta",
@@ -492,6 +496,8 @@ const PRESET_PEOPLE = [
     "job": "",
     "notes": "",
     "isYou": false
+    "birthDate": null,
+    "deathDate": null
   },
   {
     "id": "p100",
