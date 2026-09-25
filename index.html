@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>A családfánk</title>
+<title>Bottoni–László Family Tree</title>
 <style>
   :root{
     --ink:#132821;
@@ -2853,7 +2853,7 @@ document.getElementById('sendSuggestBtn').onclick = () => {
     `Details: ${details}\n` +
     `Suggested by: ${from || '(not given)'}\n`;
 
-  const mailto = `mailto:${bottonidaniel13@gmail.com}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  const mailto = `mailto:${OWNER_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   window.location.href = mailto;
   suggestOverlay.classList.remove('open');
 };
