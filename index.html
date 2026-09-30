@@ -2712,7 +2712,7 @@ function computeLayout(){
   const groupGen = {};
   Object.keys(groups).forEach(g => { groupGen[g] = personGen(groups[g][0]); });
 
-  const aboveLabels = ['Én generációm', "Szülők generációja", "Nagyszülők generációja", "Dédszülők generációja", "Ükszülők", "Szépszülők generációja", "Ősök", "Még régebbi ősök", "Szuperrégi ősök" "];
+  const aboveLabels = ['Én generációm', "Szülők generációja", "Nagyszülők generációja", "Dédszülők generációja", "Ükszülők", "Szépszülők generációja", "Ősök", "Még régebbi ősök", "Szuperrégi ősök"];
   const belowLabels = ['Én generációm', "Gyerekek generációja", "Unokák generációja", "Ükunokák generációja"];
   const youGen = youPerson ? personGen(youPerson.id) : null;
   function genLabel(g){
