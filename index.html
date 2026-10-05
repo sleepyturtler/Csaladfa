@@ -1,8 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="hu">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#132821">
 <title>Családfa</title>
 <style>
   :root{
@@ -13,11 +14,16 @@
     --paternal:#8b2635;
     --maternal:#1f6f6b;
     --direct:#c9a227;
+    --ui:'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
+    --sat:env(safe-area-inset-top,0px);
+    --sar:env(safe-area-inset-right,0px);
+    --sab:env(safe-area-inset-bottom,0px);
+    --sal:env(safe-area-inset-left,0px);
   }
-  *{box-sizing:border-box;}
-  html,body{height:100%;}
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%; margin:0; -webkit-text-size-adjust:100%; overscroll-behavior:none;}
   body{
-    margin:0;
+    position:fixed; inset:0;
     font-family: Georgia, 'Iowan Old Style', 'Palatino Linotype', serif;
     background: var(--ink);
     background-image:
@@ -25,35 +31,56 @@
       radial-gradient(circle at 80% 70%, rgba(139,38,53,0.08), transparent 45%);
     color: var(--paper);
     overflow:hidden;
-    height:100vh;
   }
+  button{ font-family:var(--ui); touch-action:manipulation; }
+  :focus-visible{ outline:2px solid var(--gold-soft); outline-offset:2px; }
 
+  /* ---------- header ---------- */
   header{
     position:fixed; top:0; left:0; right:0; z-index:20;
-    display:flex; align-items:center; justify-content:space-between; gap:12px;
-    padding:14px 20px;
-    background:linear-gradient(180deg, rgba(19,40,33,0.97), rgba(19,40,33,0.0));
-    flex-wrap:wrap;
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding: calc(12px + var(--sat)) calc(16px + var(--sar)) 22px calc(16px + var(--sal));
+    background:linear-gradient(180deg, rgba(19,40,33,0.97) 55%, rgba(19,40,33,0));
+    pointer-events:none;
   }
-  .title{ font-size:1.25em; letter-spacing:0.03em; color:var(--gold-soft); }
+  header > *{ pointer-events:auto; }
+  .title{ font-size:1.25rem; letter-spacing:0.03em; color:var(--gold-soft); line-height:1.1; }
   .title small{
-    display:block; font-family:'Segoe UI', sans-serif; font-size:0.42em;
-    letter-spacing:0.14em; text-transform:uppercase; color:#a9b8ab; margin-top:3px;
+    display:block; font-family:var(--ui); font-size:0.52rem;
+    letter-spacing:0.14em; text-transform:uppercase; color:#a9b8ab; margin-top:4px;
   }
-  .toolbar{ display:flex; gap:7px; flex-wrap:wrap; }
-  .toolbar button{
-    font-family:'Segoe UI', sans-serif; font-size:0.78em;
-    background: rgba(239,230,211,0.08);
-    border:1px solid rgba(228,201,116,0.35);
-    color: var(--gold-soft);
-    padding:8px 12px; border-radius:4px; cursor:pointer;
-  }
-  .toolbar button:hover{ background: rgba(228,201,116,0.15); border-color: var(--gold); }
-  .zoom-readout{ font-family:'Segoe UI', sans-serif; font-size:0.78em; color:var(--gold-soft); align-self:center; min-width:40px; text-align:center;}
+  .actions{ display:flex; gap:8px; align-items:center; }
 
+  .tbtn{
+    display:inline-flex; align-items:center; justify-content:center; gap:6px;
+    min-height:40px; padding:0 14px; font-size:0.86rem; line-height:1;
+    border-radius:6px; cursor:pointer;
+    border:1px solid rgba(228,201,116,0.4);
+    background:rgba(19,40,33,0.88); color:var(--gold-soft);
+  }
+  .tbtn:hover{ background:rgba(40,70,58,0.95); border-color:var(--gold); }
+  .tbtn.primary{ background:var(--gold-soft); color:var(--ink); border-color:var(--gold-soft); font-weight:600; }
+  .tbtn.primary:hover{ background:#efd98f; }
+  .tbtn.icon{ width:40px; padding:0; font-size:1.2rem; }
+
+  .menu-wrap{ position:relative; }
+  .menu{
+    position:absolute; right:0; top:46px; min-width:240px;
+    background:var(--paper); color:var(--ink); border-radius:8px; padding:6px;
+    box-shadow:0 14px 40px rgba(0,0,0,0.5); font-family:var(--ui);
+  }
+  .menu[hidden]{ display:none; }
+  .menu button{
+    display:block; width:100%; text-align:left; min-height:44px; padding:0 12px;
+    border:none; background:transparent; color:var(--ink); font-size:0.92rem; border-radius:5px; cursor:pointer;
+  }
+  .menu button:hover{ background:rgba(0,0,0,0.07); }
+  .menu button[hidden]{ display:none; }
+
+  /* ---------- canvas ---------- */
   #stage{ position:absolute; inset:0; cursor:grab; touch-action:none; }
   #stage.panning{ cursor:grabbing; }
-  #canvas{ position:absolute; top:0; left:0; width:4000px; height:2000px; transform-origin:0 0; }
+  #canvas{ position:absolute; top:0; left:0; width:4000px; height:2000px; transform-origin:0 0; will-change:transform; }
   svg.links{ position:absolute; top:0; left:0; width:4000px; height:2000px; overflow:visible; pointer-events:none; }
 
   .card{
@@ -61,11 +88,12 @@
     background: var(--paper); color: var(--ink);
     border-radius:3px; padding:13px 15px 11px;
     box-shadow: 0 6px 20px rgba(0,0,0,0.35), 0 0 0 1px rgba(0,0,0,0.06);
-    cursor: pointer; user-select:none; touch-action:none;
+    cursor: pointer; user-select:none; -webkit-user-select:none; touch-action:none;
     border-top:4px solid var(--direct);
     transition: box-shadow .15s;
   }
   .card:hover{ box-shadow: 0 10px 26px rgba(0,0,0,0.45), 0 0 0 1px rgba(0,0,0,0.06); }
+  .card:focus-visible{ outline:3px solid var(--gold-soft); outline-offset:3px; }
   .card.nat-italian{ border-top-color: var(--paternal); }
   .card.nat-hungarian{ border-top-color: var(--maternal); }
   .card.nat-mixed{
@@ -75,83 +103,113 @@
   .card.you{ box-shadow: 0 0 0 2px var(--gold), 0 8px 24px rgba(0,0,0,0.4); }
   .card.deceased{ opacity:0.72; background:#e4dcc8; }
   .card .name{ font-size:1.05em; font-weight:700; line-height:1.25; margin-bottom:3px; }
-  .card .rel{ font-family:'Segoe UI', sans-serif; font-size:0.64em; text-transform:uppercase; letter-spacing:0.07em; color:#6b5c3d; margin-bottom:7px;}
-  .card .meta{ font-family:'Segoe UI', sans-serif; font-size:0.76em; color:#3a3a3a; line-height:1.5;}
+  .card .rel{ font-family:var(--ui); font-size:0.64em; text-transform:uppercase; letter-spacing:0.07em; color:#6b5c3d; margin-bottom:7px;}
+  .card .meta{ font-family:var(--ui); font-size:0.76em; color:#3a3a3a; line-height:1.5;}
   .card .job{ display:block; margin-top:6px; padding-top:6px; border-top:1px solid rgba(0,0,0,0.1); font-style:italic; color:#555; }
 
-  .legend{
-    position:fixed; bottom:16px; left:20px; z-index:20;
-    display:flex; gap:16px; align-items:center; flex-wrap:wrap;
-    font-family:'Segoe UI', sans-serif; font-size:0.74em;
-    background: rgba(19,40,33,0.88); padding:9px 14px; border-radius:6px;
-    border:1px solid rgba(228,201,116,0.2); max-width:calc(100vw - 40px);
+  /* ---------- floating UI ---------- */
+  .dock{
+    position:fixed; right:calc(14px + var(--sar)); bottom:calc(14px + var(--sab)); z-index:20;
+    display:flex; flex-direction:column; gap:8px;
   }
+  .dock .tbtn{ width:44px; height:44px; min-height:44px; padding:0; font-size:1.35rem; }
+
+  .legend{
+    position:fixed; left:calc(14px + var(--sal)); bottom:calc(14px + var(--sab)); z-index:20;
+    display:flex; gap:6px 14px; align-items:center; flex-wrap:wrap;
+    font-family:var(--ui); font-size:0.76rem;
+    background: rgba(19,40,33,0.9); padding:9px 12px; border-radius:6px;
+    border:1px solid rgba(228,201,116,0.2);
+    max-width:calc(100vw - 100px - var(--sal) - var(--sar));
+  }
+  .legend span{ white-space:nowrap; }
   .legend .dot{ width:10px; height:10px; border-radius:2px; display:inline-block; margin-right:5px; }
 
   .hint-toast{
-    position:fixed; bottom:16px; right:20px; z-index:20;
-    font-family:'Segoe UI', sans-serif; font-size:0.74em; color: rgba(239,230,211,0.6);
-    background: rgba(19,40,33,0.88); padding:9px 14px; border-radius:6px;
-    border:1px solid rgba(228,201,116,0.2); max-width:230px; line-height:1.5;
+    position:fixed; left:50%; transform:translateX(-50%); z-index:19;
+    bottom:calc(86px + var(--sab));
+    width:min(92vw, 360px); text-align:center;
+    font-family:var(--ui); font-size:0.8rem; color: rgba(239,230,211,0.85);
+    background: rgba(19,40,33,0.94); padding:10px 14px; border-radius:6px;
+    border:1px solid rgba(228,201,116,0.25); line-height:1.5;
+    transition:opacity .4s; pointer-events:none;
   }
+  .hint-toast.hide{ opacity:0; }
 
+  /* ---------- dialogs ---------- */
   .overlay{
     position:fixed; inset:0; background:rgba(8,16,13,0.78); z-index:100;
-    display:none; align-items:flex-start; justify-content:center;
-    overflow-y:auto; padding:40px 16px;
+    display:none; overflow-y:auto; padding:24px 16px; overscroll-behavior:contain;
   }
   .overlay.open{ display:flex; }
   .modal{
-    background: var(--paper); color:var(--ink); border-radius:8px;
-    width:100%; max-width:380px; padding:24px 24px 20px;
+    margin:auto; background: var(--paper); color:var(--ink); border-radius:8px;
+    width:100%; max-width:400px; padding:24px 24px 20px;
     box-shadow:0 20px 60px rgba(0,0,0,0.5);
-    font-family:'Segoe UI', sans-serif;
+    font-family:var(--ui);
   }
-  .modal h2{
-    font-family:Georgia, serif; font-size:1.3em; margin:0 0 4px;
-    color:#2b2010;
-  }
-  .modal .sub{ font-size:0.78em; color:#6b5c3d; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:16px; border-bottom:2px solid var(--gold); padding-bottom:12px; }
-  .modal .row{ margin-bottom:10px; font-size:0.9em; line-height:1.5; }
+  .modal:focus{ outline:none; }
+  .modal h2{ font-family:Georgia, serif; font-size:1.3rem; margin:0 0 4px; color:#2b2010; }
+  .modal .sub{ font-size:0.78rem; color:#6b5c3d; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:16px; border-bottom:2px solid var(--gold); padding-bottom:12px; }
+  .modal .lead{ font-size:0.85rem; color:#5a4d30; margin:8px 0 14px; line-height:1.5; }
+  .modal .row{ margin-bottom:10px; font-size:0.95rem; line-height:1.5; }
   .modal .row b{ color:#5a4d30; }
-  .modal .notes{ margin-top:10px; padding-top:10px; border-top:1px solid #d8cca8; font-style:italic; color:#555; font-size:0.85em; }
-  .modal .close-btn{
-    margin-top:16px; width:100%; padding:9px 16px; border-radius:5px; border:none;
-    background: var(--ink); color: var(--gold-soft); font-weight:600; cursor:pointer; font-size:0.9em;
-  }
-  .modal-actions{ display:flex; gap:8px; margin-top:14px; flex-wrap:wrap; }
-  .btn{ font-family:'Segoe UI', sans-serif; font-size:0.88em; padding:9px 16px; border-radius:5px; border:none; cursor:pointer; font-weight:600; }
+  .modal .row.rel-line{ margin:0 0 6px 8px; }
+  .modal .notes{ margin-top:10px; padding-top:10px; border-top:1px solid #d8cca8; font-style:italic; color:#555; font-size:0.9rem; }
+  .modal-actions{ display:flex; gap:8px; margin-top:16px; }
+  .modal-actions .btn{ flex:1; padding:0 10px; }
+  .modal-actions .btn-secondary:first-child{ flex:1.3; }
+  .btn{ font-size:0.92rem; min-height:44px; padding:0 16px; border-radius:6px; border:none; cursor:pointer; font-weight:600; }
   .btn-primary{ background: var(--ink); color: var(--gold-soft); }
   .btn-secondary{ background:#e2d8bd; color:#3a3020; }
   .btn:hover{ opacity:0.9; }
+  .form-error{ color:#8b2635; font-size:0.85rem; margin-top:10px; min-height:1.2em; }
   .import-textarea{
-    width:100%; height:220px; font-family:monospace; font-size:0.78em; padding:10px;
+    width:100%; height:220px; font-family:monospace; font-size:16px; padding:10px;
     border:1.5px solid #cfc3a3; border-radius:4px; background:#fbf7ee; color:#1c1c1c;
   }
   .field{ margin-bottom:12px; }
-  .field label{ display:block; font-size:0.78em; font-weight:600; color:#5a4d30; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.03em; font-family:'Segoe UI', sans-serif; }
+  .field label{ display:block; font-size:0.78rem; font-weight:600; color:#5a4d30; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.03em; }
   .field input, .field select, .field textarea{
-    width:100%; padding:8px 10px; border:1.5px solid #cfc3a3; border-radius:4px;
-    font-family:'Segoe UI', sans-serif; font-size:0.92em; background:#fbf7ee; color:#1c1c1c;
+    width:100%; min-height:44px; padding:8px 10px; border:1.5px solid #cfc3a3; border-radius:4px;
+    font-family:var(--ui); font-size:16px; background:#fbf7ee; color:#1c1c1c;
   }
-  .field textarea{ resize:vertical; min-height:60px; }
+  .field textarea{ resize:vertical; min-height:90px; }
 
-  @media (max-width:600px){ .title{ font-size:1.05em; } }
+  /* ---------- phones: dialogs become bottom sheets ---------- */
+  @media (max-width:600px){
+    .title{ font-size:1.1rem; }
+    .overlay{ padding:0; }
+    .modal{
+      margin:auto 0 0; max-width:none; border-radius:16px 16px 0 0;
+      max-height:90vh; max-height:90dvh; overflow-y:auto;
+      padding:22px 20px calc(18px + var(--sab));
+      animation:sheet .22s ease-out;
+    }
+    .import-textarea{ height:35vh; height:35dvh; }
+    .legend{ font-size:0.7rem; padding:8px 10px; gap:4px 10px; }
+    .hint-toast{ left:calc(14px + var(--sal)); transform:none; width:calc(100vw - 100px - var(--sal) - var(--sar)); bottom:calc(84px + var(--sab)); text-align:left; }
+  }
+  @keyframes sheet{ from{ transform:translateY(40px); opacity:0; } to{ transform:none; opacity:1; } }
+  @media (prefers-reduced-motion:reduce){
+    .modal{ animation:none; }
+    .hint-toast, .card{ transition:none; }
+  }
 </style>
 </head>
 <body>
 
 <header>
   <div class="title">Családfa<small>Megtekintő verzió</small></div>
-  <div class="toolbar">
-    <button id="autoArrangeBtn">Auto-Elrendezés</button>
-    <button id="zoomOutBtn">− Kicsinyítés</button>
-    <span class="zoom-readout" id="zoomReadout">45%</span>
-    <button id="zoomInBtn">+ Nagyítás</button>
-    <button id="resetViewBtn">Nézet helyreállítása</button>
-    <button id="importBtn">JSON Importálása</button>
-    <button id="loadPresetBtn">Az én családfám</button>
-    <button id="suggestAddBtn">Hiányzó személy hozzáadása</button>
+  <div class="actions">
+    <button class="tbtn primary" id="suggestBtn">Módosítás javaslata</button>
+    <div class="menu-wrap">
+      <button class="tbtn icon" id="menuBtn" aria-label="További műveletek" aria-haspopup="true" aria-expanded="false">⋯</button>
+      <div class="menu" id="menu" hidden>
+        <button id="importBtn">JSON importálása</button>
+        <button id="loadPresetBtn" hidden>Az én családfám visszaállítása</button>
+      </div>
+    </div>
   </div>
 </header>
 
@@ -161,6 +219,12 @@
   </div>
 </div>
 
+<div class="dock">
+  <button class="tbtn" id="zoomInBtn" aria-label="Nagyítás">+</button>
+  <button class="tbtn" id="zoomOutBtn" aria-label="Kicsinyítés">−</button>
+  <button class="tbtn" id="fitBtn" aria-label="Az egész családfa áttekintése" title="Áttekintés">⤢</button>
+</div>
+
 <div class="legend">
   <span><span class="dot" style="background:var(--paternal)"></span>Olasz</span>
   <span><span class="dot" style="background:var(--maternal)"></span>Magyar</span>
@@ -168,66 +232,67 @@
   <span><span class="dot" style="background:var(--gold)"></span>Más / Nem ismert</span>
 </div>
 
-<div class="hint-toast">Kattints egy kártyára több adatért. A mozgáshoz nyomj egy üres helyre. Az ujjaiddal vagy a gombokkal tudsz nagyítani.</div>
+<div class="hint-toast" id="hint">Kattints egy kártyára több adatért. A mozgáshoz nyomj egy üres helyre. Az ujjaiddal vagy a gombokkal tudsz nagyítani.</div>
 
 <div class="overlay" id="infoOverlay">
-  <div class="modal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="info_name" tabindex="-1">
     <h2 id="info_name"></h2>
     <div class="sub" id="info_rel"></div>
     <div id="info_body"></div>
-    <button class="btn btn-secondary" id="suggestEditBtn" style="width:100%; margin-top:10px;">Ajánlj egy módosítást</button>
-    <button class="close-btn" id="closeInfoBtn">Bezárás</button>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="suggestEditBtn">Ajánlj egy módosítást</button>
+      <button class="btn btn-primary" id="closeInfoBtn">Bezárás</button>
+    </div>
   </div>
 </div>
 
 <div class="overlay" id="suggestOverlay">
-  <div class="modal">
-    <h2>Ajánlj egy módosítást</h2>
-    <p style="font-family:'Segoe UI', sans-serif; font-size:0.82em; color:#5a4d30; margin:8px 0 14px;">
-      Ez megnyitja az email appodat az adatokkal előre beírva.
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="sg_title" tabindex="-1">
+    <h2 id="sg_title">Ajánlj egy módosítást</h2>
+    <p class="lead">Ez megnyitja az email appodat az adatokkal előre beírva.</p>
     <div class="field">
-      <label>SZemély</label>
-      <input type="text" id="sg_person" placeholder="e.g. Stefano Bottoni, or a new person's name">
+      <label for="sg_person">Személy</label>
+      <input type="text" id="sg_person" placeholder="pl. Franco Bottoni, vagy egy új személy neve" autocomplete="off">
     </div>
     <div class="field">
-      <label>Milyen módosítás?</label>
+      <label for="sg_type">Milyen módosítás?</label>
       <select id="sg_type">
-        <option value="" disabled selected>— choose —</option>
-        <option value="New person">Add a missing person</option>
-        <option value="Name">Név megváltoztatása</option>
-        <option value="Nationality">Származás</option>
-        <option value="Job">Munka</option>
-        <option value="Birth">Születési év</option>
-        <option value="Death">Haláli év</option>
-        <option value="Relationship">Kapcsolat más személlyel</option>
-        <option value="Other">Valami más</option>
+        <option value="" disabled selected>— válassz —</option>
+        <option>Hiányzó személy hozzáadása</option>
+        <option>Név megváltoztatása</option>
+        <option>Származás</option>
+        <option>Munka</option>
+        <option>Születési év</option>
+        <option>Halálozási év</option>
+        <option>Kapcsolat más személlyel</option>
+        <option>Valami más</option>
       </select>
     </div>
     <div class="field">
-      <label>A módosítás szövege</label>
+      <label for="sg_details">A módosítás szövege</label>
       <textarea id="sg_details" placeholder="Javított adat"></textarea>
     </div>
     <div class="field">
-      <label>A te neved</label>
-      <input type="text" id="sg_from" placeholder="Hogy a szerkesztő tudja ki ajánlotta">
+      <label for="sg_from">A te neved</label>
+      <input type="text" id="sg_from" placeholder="Hogy a szerkesztő tudja ki ajánlotta" autocomplete="name">
     </div>
+    <div class="form-error" id="sg_error" role="alert"></div>
     <div class="modal-actions">
-      <button class="btn btn-primary" id="sendSuggestBtn">Elküldés</button>
       <button class="btn btn-secondary" id="closeSuggestBtn">Visszavonás</button>
+      <button class="btn btn-primary" id="sendSuggestBtn">Elküldés</button>
     </div>
   </div>
 </div>
 
 <div class="overlay" id="importOverlay">
-  <div class="modal">
-    <h2>Adatok betöltése</h2>
-    <p style="font-family:'Segoe UI', sans-serif; font-size:0.82em; color:#5a4d30; margin:8px 0 14px;">
-      JSON betöltése a családfa készítőből, semmi nem lesz lementve, az ablak újratöltése mindig az alap családfához fog visszavinni
-    </p>
-    <textarea id="importText" class="import-textarea" placeholder="Paste JSON here…"></textarea>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="im_title" tabindex="-1">
+    <h2 id="im_title">Adatok betöltése</h2>
+    <p class="lead">JSON betöltése a családfa készítőből, semmi nem lesz lementve, az ablak újratöltése mindig az alap családfához fog visszavinni.</p>
+    <textarea id="importText" class="import-textarea" placeholder="Illeszd be ide a JSON-t…" aria-label="JSON adatok"></textarea>
+    <div class="form-error" id="im_error" role="alert"></div>
     <div class="modal-actions">
-      <button class="btn btn-primary" id="loadImportTextBtn">Betöltés</button>
       <button class="btn btn-secondary" id="closeImportBtn">Visszavonás</button>
+      <button class="btn btn-primary" id="loadImportTextBtn">Betöltés</button>
     </div>
   </div>
 </div>
@@ -422,7 +487,7 @@ const PRESET_PEOPLE = [
     "notes": "",
     "isYou": false,
     "birthDate": "2021-08-22",
-    "deathDate": null
+    "deathDate": null,
     "givenName": "Pietro",
     "surname": "Sghirlanzoni",
     "nameOrderGivenFirst": true,
@@ -440,7 +505,7 @@ const PRESET_PEOPLE = [
     "notes": "",
     "isYou": false,
     "birthDate": "2024-05-13",
-    "deathDate": null
+    "deathDate": null,
     "givenName": "Adele",
     "surname": "Sghirlanzoni",
     "nameOrderGivenFirst": true,
@@ -492,7 +557,7 @@ const PRESET_PEOPLE = [
     "deathYear": null,
     "job": "Student",
     "notes": "",
-    "isYou": false,
+    "isYou": true,
     "birthDate": "2011-08-25",
     "deathDate": null,
     "givenName": "Dániel Balázs",
@@ -656,7 +721,7 @@ const PRESET_PEOPLE = [
     "notes": "",
     "isYou": false,
     "birthDate": null,
-    "deathDate": null
+    "deathDate": null,
     "givenName": "Adele",
     "surname": "Zappaterra",
     "nameOrderGivenFirst": true,
@@ -674,7 +739,7 @@ const PRESET_PEOPLE = [
     "notes": "",
     "isYou": false,
     "birthDate": "1938-02-13",
-    "deathDate": null
+    "deathDate": null,
     "givenName": "Ismen",
     "surname": "Bottoni",
     "nameOrderGivenFirst": true,
@@ -692,7 +757,7 @@ const PRESET_PEOPLE = [
     "notes": "",
     "isYou": false,
     "birthDate": "1942-10-17",
-    "deathDate": null
+    "deathDate": null,
     "givenName": "Valeria",
     "surname": "Gambetti",
     "nameOrderGivenFirst": true,
@@ -710,7 +775,7 @@ const PRESET_PEOPLE = [
     "notes": "",
     "isYou": false,
     "birthDate": "1970-03-05",
-    "deathDate": null
+    "deathDate": null,
     "givenName": "Andrea",
     "surname": "Bottoni",
     "nameOrderGivenFirst": true,
@@ -2752,11 +2817,11 @@ function computeLayout(){
   const belowLabels = ['Én generációm', "Gyerekek generációja", "Unokák generációja", "Ükunokák generációja"];
   const youGen = youPerson ? personGen(youPerson.id) : null;
   function genLabel(g){
-    if(youGen === null) return 'Generation ' + (g + 1);
+    if(youGen === null) return (g + 1) + '. generáció';
     const diff = youGen - g;
     if(diff >= 0 && diff < aboveLabels.length) return aboveLabels[diff];
     if(diff < 0 && -diff < belowLabels.length) return belowLabels[-diff];
-    return 'Generation ' + (g + 1);
+    return (g + 1) + '. generáció';
   }
 
   const primaryParent = {};
@@ -2917,46 +2982,50 @@ const svg = document.getElementById('links');
 
 function natClass(nationality){
   const n = (nationality||'').toLowerCase();
-  const isItalian = n.includes('ital');
-  const isHungarian = n.includes('hungar');
+  const isItalian = n.includes('ital') || n.includes('olasz');
+  const isHungarian = n.includes('hungar') || n.includes('magyar');
   if(isItalian && isHungarian) return 'nat-mixed';
   if(isItalian) return 'nat-italian';
   if(isHungarian) return 'nat-hungarian';
   return '';
 }
+// Data stores English values ("Italian", "Hungarian"); show them in Hungarian.
+function natLabel(nationality){
+  const c = natClass(nationality);
+  if(c === 'nat-mixed') return 'Olasz és magyar';
+  if(c === 'nat-italian') return 'Olasz';
+  if(c === 'nat-hungarian') return 'Magyar';
+  return nationality || 'Ismeretlen származás';
+}
 
+const MONTHS_HU = ['jan.','febr.','márc.','ápr.','máj.','jún.','júl.','aug.','szept.','okt.','nov.','dec.'];
 function fmtDate(iso){
   if(!iso) return null;
-  const d = new Date(iso + 'T00:00:00');
-  if(isNaN(d.getTime())) return iso;
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  return d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear();
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if(!m) return iso;
+  return `${m[1]}. ${MONTHS_HU[+m[2]-1]} ${+m[3]}.`;
 }
 function fmtMonthYear(ym){
   if(!ym) return null;
   const [y, m] = ym.split('-').map(Number);
   if(!y || !m) return ym;
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  return months[m-1] + ' ' + y;
+  return `${y}. ${MONTHS_HU[m-1]}`;
 }
-function fmtBirthDeath(p){
-  const parts = [];
-  if(p.birthDate) parts.push('b. ' + fmtDate(p.birthDate));
-  else if(p.birthMonthYear) parts.push('b. ' + fmtMonthYear(p.birthMonthYear));
-  else if(p.birthYear) parts.push('b. ' + p.birthYear);
-  else parts.push('b. ?');
-  if(p.deathDate) parts.push('d. ' + fmtDate(p.deathDate));
-  else if(p.deathMonthYear) parts.push('d. ' + fmtMonthYear(p.deathMonthYear));
-  else if(p.deathYear) parts.push('d. ' + p.deathYear);
-  else if(p.deceased) parts.push('d. ?');
-  return parts.join(' · ');
+function isDeceased(p){ return !!(p.deceased || p.deathYear || p.deathMonthYear || p.deathDate); }
+function birthText(p){
+  return fmtDate(p.birthDate) || fmtMonthYear(p.birthMonthYear) || p.birthYear || '?';
+}
+function deathText(p){
+  if(!isDeceased(p)) return null;
+  return fmtDate(p.deathDate) || fmtMonthYear(p.deathMonthYear) || p.deathYear || '?';
 }
 function escapeHtml(s){
-  return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
 let currentFamilyBoxes = [];
 let currentRowLabels = [];
+let bounds = {x0:0, y0:0, x1:800, y1:800};
 
 function render(){
   const { personPos, familyBoxes, rowLabels } = computeLayout();
@@ -2964,7 +3033,17 @@ function render(){
   currentRowLabels = rowLabels;
 
   let maxX = 800, maxY = 800;
-  Object.values(personPos).forEach(pos => { maxX = Math.max(maxX, pos.x + CARD_W + 200); maxY = Math.max(maxY, pos.y + 400); });
+  let bx0 = Infinity, by0 = Infinity, bx1 = -Infinity, by1 = -Infinity;
+  Object.values(personPos).forEach(pos => {
+    maxX = Math.max(maxX, pos.x + CARD_W + 200); maxY = Math.max(maxY, pos.y + 400);
+    bx0 = Math.min(bx0, pos.x); by0 = Math.min(by0, pos.y);
+    bx1 = Math.max(bx1, pos.x + CARD_W); by1 = Math.max(by1, pos.y + 118);
+  });
+  if(bx0 === Infinity){ bx0 = 0; by0 = 0; bx1 = 800; by1 = 400; }
+  familyBoxes.forEach(b => { bx0 = Math.min(bx0, b.x0); by0 = Math.min(by0, b.y0); bx1 = Math.max(bx1, b.x1); by1 = Math.max(by1, b.y1); });
+  rowLabels.forEach(rl => { by0 = Math.min(by0, rl.y - 70); bx0 = Math.min(bx0, rl.x); });
+  bounds = { x0: bx0 - 30, y0: by0 - 10, x1: bx1 + 30, y1: by1 + 20 };
+
   canvas.style.width = maxX + 'px'; canvas.style.height = maxY + 'px';
   svg.setAttribute('width', maxX); svg.setAttribute('height', maxY);
   svg.style.width = maxX + 'px'; svg.style.height = maxY + 'px';
@@ -2974,16 +3053,20 @@ function render(){
   people.forEach(p => {
     const pos = personPos[p.id] || {x:0,y:0};
     p._x = pos.x; p._y = pos.y;
+    const dead = isDeceased(p);
     const el = document.createElement('div');
-    el.className = 'card ' + natClass(p.nationality) + (p.isYou ? ' you' : '') + (p.deceased || p.deathYear || p.deathMonthYear || p.deathDate ? ' deceased' : '');
+    el.className = 'card ' + natClass(p.nationality) + (p.isYou ? ' you' : '') + (dead ? ' deceased' : '');
     el.style.left = pos.x + 'px';
     el.style.top = pos.y + 'px';
     el.dataset.id = p.id;
+    el.tabIndex = 0;
+    el.setAttribute('role', 'button');
+    el.setAttribute('aria-label', p.name || 'Személy');
     el.innerHTML = `
-      <div class="name">${escapeHtml(p.name)}${(p.deathYear || p.deathMonthYear || p.deathDate || p.deceased) ? ' <span style="font-weight:400;">✝</span>' : ''}</div>
-      <div class="rel">${escapeHtml(p.nationality || 'Nationality unknown')}</div>
+      <div class="name">${escapeHtml(p.name)}${dead ? ' <span style="font-weight:400;">✝</span>' : ''}</div>
+      <div class="rel">${escapeHtml(natLabel(p.nationality))}</div>
       <div class="meta">
-        ${fmtBirthDeath(p)}
+        sz. ${escapeHtml(birthText(p))}${dead ? ' · † ' + escapeHtml(deathText(p)) : ''}
         ${p.job ? `<span class="job">${escapeHtml(p.job)}</span>` : ''}
       </div>
     `;
@@ -2992,6 +3075,7 @@ function render(){
   });
 
   drawLinks();
+  MIN_SCALE = Math.min(0.12, fitScale() * 0.9);
 }
 
 function drawLinks(){
@@ -3003,7 +3087,7 @@ function drawLinks(){
   });
 
   currentRowLabels.forEach(rl => {
-    content += `<text x="${rl.x}" y="${rl.y - 42}" font-family="Segoe UI, sans-serif" font-size="20" font-weight="700" letter-spacing="1" fill="rgba(228,201,116,0.75)" text-transform="uppercase">${escapeHtml(rl.label).toUpperCase()}</text>`;
+    content += `<text x="${rl.x}" y="${rl.y - 42}" font-family="Segoe UI, sans-serif" font-size="20" font-weight="700" letter-spacing="1" fill="rgba(228,201,116,0.75)">${escapeHtml(rl.label).toUpperCase()}</text>`;
   });
 
   const drawnPairs = new Set();
@@ -3027,7 +3111,7 @@ function drawLinks(){
 
   const parentsOf = {};
   people.forEach(p => parentsOf[p.id] = new Set());
-  relations.forEach(r => { if(r.type === 'parent-child') parentsOf[r.b].add(r.a); });
+  relations.forEach(r => { if(r.type === 'parent-child' && parentsOf[r.b]) parentsOf[r.b].add(r.a); });
   const byParentSet = {};
   people.forEach(p => {
     const key = Array.from(parentsOf[p.id]).sort().join(',');
@@ -3052,99 +3136,205 @@ function drawLinks(){
 }
 
 // ============================================================
-// READ-ONLY INFO PANEL (tap a card)
+// DIALOGS
 // ============================================================
 const infoOverlay = document.getElementById('infoOverlay');
+const suggestOverlay = document.getElementById('suggestOverlay');
+const importOverlay = document.getElementById('importOverlay');
+const menu = document.getElementById('menu');
+const menuBtn = document.getElementById('menuBtn');
+
+function openOverlay(el){ el.classList.add('open'); const m = el.querySelector('.modal'); if(m) m.focus({preventScroll:true}); }
+function closeOverlay(el){ el.classList.remove('open'); }
+function closeMenu(){ menu.hidden = true; menuBtn.setAttribute('aria-expanded', 'false'); }
+[infoOverlay, suggestOverlay, importOverlay].forEach(o => {
+  o.addEventListener('click', (e) => { if(e.target === o) closeOverlay(o); });
+});
+document.addEventListener('keydown', (e) => {
+  if(e.key !== 'Escape') return;
+  closeMenu();
+  [infoOverlay, suggestOverlay, importOverlay].forEach(closeOverlay);
+});
+
+menuBtn.onclick = (e) => {
+  e.stopPropagation();
+  const open = menu.hidden;
+  menu.hidden = !open;
+  menuBtn.setAttribute('aria-expanded', String(open));
+};
+document.addEventListener('click', (e) => { if(!menu.hidden && !menu.contains(e.target)) closeMenu(); });
 
 function relLabelFor(personId, r){
   const other = personById(r.a === personId ? r.b : r.a);
   if(!other) return null;
-  if(r.type === 'spouse') return 'Spouse/partner: ' + other.name;
-  if(r.type === 'sibling') return 'Sibling: ' + other.name;
-  if(r.type === 'parent-child') return (r.a === personId ? 'Parent of: ' : 'Child of: ') + other.name;
+  if(r.type === 'spouse') return 'Házastárs/partner: ' + other.name;
+  if(r.type === 'sibling') return 'Testvér: ' + other.name;
+  if(r.type === 'parent-child') return (r.a === personId ? 'Gyermeke: ' : 'Szülője: ') + other.name;
   return null;
 }
 
 function openInfo(id){
   const p = personById(id); if(!p) return;
-  document.getElementById('info_name').textContent = p.name || '(unnamed)';
-  document.getElementById('info_rel').textContent = [p.nationality, p.job].filter(Boolean).join(' · ') || 'Details';
+  document.getElementById('info_name').textContent = p.name || '(névtelen)';
+  document.getElementById('info_rel').textContent = [natLabel(p.nationality), p.job].filter(Boolean).join(' · ') || 'Részletek';
   const relLines = relations
     .filter(r => r.a === id || r.b === id)
     .map(r => relLabelFor(id, r))
     .filter(Boolean);
-  const body = document.getElementById('info_body');
-  body.innerHTML = `
-    <div class="row"><b>Born:</b> ${escapeHtml(fmtBirthDeath(p).split(' · ')[0].replace('b. ',''))}</div>
-    ${(p.deathDate||p.deathMonthYear||p.deathYear||p.deceased) ? `<div class="row"><b>Died:</b> ${escapeHtml(fmtBirthDeath(p).includes('d.') ? fmtBirthDeath(p).split('d. ')[1] : '?')}</div>` : ''}
-    ${relLines.length ? `<div class="row"><b>Relationships</b></div>` + relLines.map(l=>`<div class="row" style="margin-left:8px;">${escapeHtml(l)}</div>`).join('') : ''}
+  const died = deathText(p);
+  document.getElementById('info_body').innerHTML = `
+    <div class="row"><b>Született:</b> ${escapeHtml(birthText(p))}</div>
+    ${died ? `<div class="row"><b>Elhunyt:</b> ${escapeHtml(died)}</div>` : ''}
+    ${relLines.length ? `<div class="row"><b>Kapcsolatok</b></div>` + relLines.map(l => `<div class="row rel-line">${escapeHtml(l)}</div>`).join('') : ''}
     ${p.notes ? `<div class="notes">${escapeHtml(p.notes)}</div>` : ''}
   `;
-  infoOverlay.classList.add('open');
+  openOverlay(infoOverlay);
 }
-document.getElementById('closeInfoBtn').onclick = () => infoOverlay.classList.remove('open');
+document.getElementById('closeInfoBtn').onclick = () => closeOverlay(infoOverlay);
+
+canvas.addEventListener('keydown', (e) => {
+  if(e.key !== 'Enter' && e.key !== ' ') return;
+  const cardEl = e.target.closest && e.target.closest('.card');
+  if(cardEl){ e.preventDefault(); openInfo(cardEl.dataset.id); }
+});
 
 // ============================================================
 // SUGGEST A CHANGE (email — no backend, works from a public link
 // or any static host with no accounts needed)
 // ============================================================
-// TODO: put the tree owner's real email address here before hosting —
-// suggestions are useless until this is filled in.
 const OWNER_EMAIL = "bottonidaniel13@gmail.com";
-
-const suggestOverlay = document.getElementById('suggestOverlay');
 
 function openSuggest(personName, defaultType){
   document.getElementById('sg_person').value = personName || '';
   document.getElementById('sg_type').value = defaultType || '';
   document.getElementById('sg_details').value = '';
   document.getElementById('sg_from').value = '';
-  suggestOverlay.classList.add('open');
+  document.getElementById('sg_error').textContent = '';
+  openOverlay(suggestOverlay);
 }
 
-document.getElementById('suggestAddBtn').onclick = () => openSuggest('', 'New person');
+// One entry point for suggestions: "Hiányzó személy hozzáadása" is just a type in the form.
+document.getElementById('suggestBtn').onclick = () => openSuggest('', '');
 document.getElementById('suggestEditBtn').onclick = () => {
-  infoOverlay.classList.remove('open');
+  closeOverlay(infoOverlay);
   openSuggest(document.getElementById('info_name').textContent, '');
 };
-document.getElementById('closeSuggestBtn').onclick = () => suggestOverlay.classList.remove('open');
+document.getElementById('closeSuggestBtn').onclick = () => closeOverlay(suggestOverlay);
 
 document.getElementById('sendSuggestBtn').onclick = () => {
   const person = document.getElementById('sg_person').value.trim();
   const type = document.getElementById('sg_type').value;
   const details = document.getElementById('sg_details').value.trim();
   const from = document.getElementById('sg_from').value.trim();
+  const err = document.getElementById('sg_error');
 
-  if(!person){ alert('Enter who this is about.'); return; }
-  if(!type){ alert('Choose what kind of change this is.'); return; }
-  if(!details){ alert('Add some details about the change.'); return; }
+  if(!person){ err.textContent = 'Írd be, kiről van szó.'; return; }
+  if(!type){ err.textContent = 'Válaszd ki, milyen módosítást javasolsz.'; return; }
+  if(!details){ err.textContent = 'Írd le a módosítás részleteit.'; return; }
+  err.textContent = '';
 
-  const subject = `Family tree suggestion: ${person} — ${type}`;
+  const subject = `Családfa javaslat: ${person} — ${type}`;
   const body =
-    `Person: ${person}\n` +
-    `Type: ${type}\n` +
-    `Details: ${details}\n` +
-    `Suggested by: ${from || '(not given)'}\n`;
+    `Személy: ${person}\n` +
+    `Típus: ${type}\n` +
+    `Részletek: ${details}\n` +
+    `Javasolta: ${from || '(nincs megadva)'}\n`;
 
-  const mailto = `mailto:${OWNER_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  window.location.href = mailto;
-  suggestOverlay.classList.remove('open');
+  window.location.href = `mailto:${OWNER_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  closeOverlay(suggestOverlay);
 };
 
-infoOverlay.addEventListener('click', (e) => { if(e.target === infoOverlay) infoOverlay.classList.remove('open'); });
+// ============================================================
+// IMPORT / RESTORE (nothing is saved; reload returns to the preset)
+// ============================================================
+const loadPresetBtn = document.getElementById('loadPresetBtn');
+
+document.getElementById('importBtn').onclick = () => {
+  closeMenu();
+  document.getElementById('importText').value = '';
+  document.getElementById('im_error').textContent = '';
+  openOverlay(importOverlay);
+};
+document.getElementById('closeImportBtn').onclick = () => closeOverlay(importOverlay);
+
+document.getElementById('loadImportTextBtn').onclick = () => {
+  const text = document.getElementById('importText').value.trim();
+  const err = document.getElementById('im_error');
+  if(!text){ err.textContent = 'Előbb illeszd be a JSON szöveget.'; return; }
+  try{
+    const parsed = JSON.parse(text);
+    if(!Array.isArray(parsed.people) || !Array.isArray(parsed.relations)) throw new Error('hiányzik a people vagy a relations lista.');
+    people = parsed.people;
+    relations = parsed.relations;
+    rootOrder = parsed.rootOrder || [];
+    closeOverlay(importOverlay);
+    loadPresetBtn.hidden = false;
+    render();
+    startView();
+  }catch(e){
+    err.textContent = 'Nem sikerült beolvasni: ' + e.message;
+  }
+};
+
+loadPresetBtn.onclick = () => {
+  closeMenu();
+  people = JSON.parse(JSON.stringify(PRESET_PEOPLE));
+  relations = JSON.parse(JSON.stringify(PRESET_RELATIONS));
+  rootOrder = JSON.parse(JSON.stringify(PRESET_ROOTORDER));
+  loadPresetBtn.hidden = true;
+  render();
+  startView();
+};
 
 // ============================================================
 // PAN / ZOOM (view only — no card dragging)
 // ============================================================
-let panX = -30, panY = -30, scale = 0.45;
-const MIN_SCALE = 0.12, MAX_SCALE = 4;
+let panX = 0, panY = 0, scale = 0.45;
+let MIN_SCALE = 0.12;
+const MAX_SCALE = 4;
 const OVERZOOM_RESISTANCE = 0.55;
+let userMoved = false;
 
 function applyTransform(){
   canvas.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
-  document.getElementById('zoomReadout').textContent = Math.round(scale*100) + '%';
 }
-applyTransform();
+
+// Fit the whole tree between the header and the legend/dock.
+const FIT_PAD = { top: 76, bottom: 76, side: 16 };
+function fitScale(){
+  const r = stage.getBoundingClientRect();
+  const w = Math.max(100, r.width - FIT_PAD.side*2), h = Math.max(100, r.height - FIT_PAD.top - FIT_PAD.bottom);
+  return Math.min(w / (bounds.x1 - bounds.x0), h / (bounds.y1 - bounds.y0));
+}
+function fitView(){
+  cancelBounce();
+  const r = stage.getBoundingClientRect();
+  const bw = bounds.x1 - bounds.x0, bh = bounds.y1 - bounds.y0;
+  scale = Math.min(0.9, fitScale());
+  panX = (r.width - bw*scale)/2 - bounds.x0*scale;
+  panY = FIT_PAD.top + (r.height - FIT_PAD.top - FIT_PAD.bottom - bh*scale)/2 - bounds.y0*scale;
+  applyTransform();
+}
+
+// Opening view: a readable zoom centred on the person marked "isYou" (the whole tree is far too
+// wide to read at once). Without one, start on the top-left-most card. Small trees are just fitted.
+function startView(){
+  cancelBounce();
+  const readable = window.innerWidth < 600 ? 0.5 : 0.45;
+  if(fitScale() >= readable){ fitView(); return; }
+  const r = stage.getBoundingClientRect();
+  const me = people.find(p => p.isYou && p._x !== undefined);
+  scale = readable;
+  if(me){
+    panX = r.width/2 - (me._x + CARD_W/2) * scale;
+    panY = r.height/2 - (me._y + 60) * scale;
+  } else {
+    const first = people.filter(p => p._x !== undefined).sort((a,b) => a._x - b._x || a._y - b._y)[0];
+    panX = FIT_PAD.side - (first ? first._x : bounds.x0) * scale;
+    panY = FIT_PAD.top - (first ? first._y - 60 : bounds.y0) * scale;
+  }
+  applyTransform();
+}
 
 function elasticScale(raw){
   if(raw < MIN_SCALE) return MIN_SCALE - (MIN_SCALE - raw) * OVERZOOM_RESISTANCE;
@@ -3187,6 +3377,14 @@ function bounceBackIfNeeded(anchorX, anchorY){
   }
   bounceRAF = requestAnimationFrame(step);
 }
+
+// First interaction: stop auto-refitting on resize and fade the hint.
+const hint = document.getElementById('hint');
+function dismissHint(){ hint.classList.add('hide'); }
+function markMoved(){ userMoved = true; dismissHint(); }
+stage.addEventListener('pointerdown', markMoved);
+stage.addEventListener('wheel', markMoved, {passive:true});
+setTimeout(dismissHint, 9000);
 
 let mode = 'idle';
 let panStart = {x:0,y:0}, panOrigin = {x:0,y:0};
@@ -3244,7 +3442,12 @@ stage.addEventListener('touchmove', (e) => {
     applyTransform();
   } else if(tapCandidate && touches.length === 1){
     const t = touches[0];
-    if(dist({x:t.clientX,y:t.clientY}, tapStartClient) > 8) tapCandidate = null;
+    if(dist({x:t.clientX,y:t.clientY}, tapStartClient) > 8){
+      // Finger dragged off a card: treat it as a pan instead of a tap.
+      tapCandidate = null;
+      mode = 'pan'; stage.classList.add('panning');
+      panStart = {x:t.clientX, y:t.clientY}; panOrigin = {x:panX, y:panY};
+    }
   }
 }, {passive:false});
 
@@ -3283,10 +3486,15 @@ window.addEventListener('mousemove', (e) => {
     panY = panOrigin.y + (e.clientY - panStart.y);
     applyTransform();
   } else if(tapCandidate){
-    if(dist({x:e.clientX,y:e.clientY}, tapStartClient) > 8) tapCandidate = null;
+    if(dist({x:e.clientX,y:e.clientY}, tapStartClient) > 8){
+      tapCandidate = null;
+      mode = 'pan'; stage.classList.add('panning');
+      panStart = {x:e.clientX, y:e.clientY}; panOrigin = {x:panX, y:panY};
+    }
   }
 });
 window.addEventListener('mouseup', () => {
+  if(!mouseDown) return;
   mouseDown = false;
   if(tapCandidate){ openInfo(tapCandidate); tapCandidate = null; }
   mode = 'idle'; stage.classList.remove('panning');
@@ -3320,47 +3528,20 @@ stage.addEventListener('wheel', (e) => {
   }
 }, {passive:false});
 
-document.getElementById('zoomInBtn').onclick = () => {
+function zoomBy(factor){
+  markMoved();
   const r = stage.getBoundingClientRect();
-  applyZoomAt(scale + 0.1, r.left + r.width/2, r.top + r.height/2, false);
-};
-document.getElementById('zoomOutBtn').onclick = () => {
-  const r = stage.getBoundingClientRect();
-  applyZoomAt(scale - 0.1, r.left + r.width/2, r.top + r.height/2, false);
-};
-document.getElementById('resetViewBtn').onclick = () => { panX=-30; panY=-30; scale=0.45; applyTransform(); };
-document.getElementById('autoArrangeBtn').onclick = () => { render(); };
+  applyZoomAt(scale * factor, r.left + r.width/2, r.top + r.height/2, false);
+}
+document.getElementById('zoomInBtn').onclick = () => zoomBy(1.3);
+document.getElementById('zoomOutBtn').onclick = () => zoomBy(1/1.3);
+document.getElementById('fitBtn').onclick = () => { markMoved(); fitView(); };
 
-document.getElementById('importBtn').onclick = () => {
-  document.getElementById('importText').value = '';
-  document.getElementById('importOverlay').classList.add('open');
-};
-document.getElementById('closeImportBtn').onclick = () => document.getElementById('importOverlay').classList.remove('open');
-
-document.getElementById('loadImportTextBtn').onclick = () => {
-  const text = document.getElementById('importText').value.trim();
-  if(!text){ alert('Paste the JSON text first.'); return; }
-  try{
-    const parsed = JSON.parse(text);
-    if(!parsed.people || !parsed.relations) throw new Error('Missing people or relations.');
-    people = parsed.people;
-    relations = parsed.relations;
-    rootOrder = parsed.rootOrder || [];
-    document.getElementById('importOverlay').classList.remove('open');
-    render();
-  }catch(err){
-    alert('Could not read that text: ' + err.message);
-  }
-};
-
-document.getElementById('loadPresetBtn').onclick = () => {
-  people = JSON.parse(JSON.stringify(PRESET_PEOPLE));
-  relations = JSON.parse(JSON.stringify(PRESET_RELATIONS));
-  rootOrder = JSON.parse(JSON.stringify(PRESET_ROOTORDER));
-  render();
-};
+// Keep the tree framed on rotate/resize until the person starts navigating.
+window.addEventListener('resize', () => { if(!userMoved){ MIN_SCALE = Math.min(0.12, fitScale()*0.9); startView(); } });
 
 render();
+startView();
 </script>
 </body>
 </html>
