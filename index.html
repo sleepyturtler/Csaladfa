@@ -5,24 +5,71 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#132821">
 <meta name="color-scheme" content="only light">
-<meta name="supported-color-schemes" content="light">
+<script>
+(function(){
+  var t = null;
+  try{ t = localStorage.getItem("csaladfa-theme"); }catch(e){}
+  if(t !== "light" && t !== "dark") t = (window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", t);
+  var m = document.querySelector('meta[name="color-scheme"]');
+  if(m) m.setAttribute("content", t === "dark" ? "dark" : "only light");
+})();
+</script>
 <title>Családfa</title>
 <style>
+  /* ---------- themes ----------
+     Light = the original look (dark green stage, paper cards).
+     Dark  = same stage, deeper, with subtly brownish-gray cards and dialogs. */
   :root{
-    --ink:#132821;
-    --gold:#c9a227;
-    --gold-soft:#e4c974;
+    color-scheme: only light;
+    --ink:#132821; --ink-rgb:19,40,33;
+    --gold:#c9a227; --gold-soft:#e4c974; --gold-hover:#efd98f;
     --paper:#efe6d3;
-    --paternal:#8b2635;
-    --maternal:#1f6f6b;
-    --direct:#c9a227;
+    --muted:#a9b8ab;
+    --paternal:#8b2635; --maternal:#1f6f6b; --direct:#c9a227;
+    --tbtn-hover:rgba(40,70,58,0.95);
+
+    --card-bg:#efe6d3; --card-ink:#132821; --card-rel:#6b5c3d; --card-meta:#3a3a3a;
+    --card-job:#555; --card-rule:rgba(0,0,0,0.1); --card-dead-bg:#e4dcc8; --card-dead-opacity:.72;
+    --card-shadow:0 6px 20px rgba(0,0,0,0.35), 0 0 0 1px rgba(0,0,0,0.06);
+    --card-shadow-hover:0 10px 26px rgba(0,0,0,0.45), 0 0 0 1px rgba(0,0,0,0.06);
+
+    --overlay:rgba(8,16,13,0.78);
+    --modal-bg:#efe6d3; --modal-ink:#132821; --modal-title:#2b2010; --modal-muted:#6b5c3d;
+    --modal-label:#5a4d30; --modal-rule:#d8cca8; --modal-body:#5a4d30; --modal-notes:#555;
+    --field-bg:#fbf7ee; --field-border:#cfc3a3; --field-ink:#1c1c1c; --placeholder:#76705f;
+    --btn2-bg:#e2d8bd; --btn2-ink:#3a3020;
+    --btn1-bg:#132821; --btn1-ink:#e4c974;
+    --menu-bg:#efe6d3; --menu-ink:#132821; --menu-hover:rgba(0,0,0,0.07);
+    --error:#8b2635;
+  }
+  :root[data-theme="dark"]{
+    color-scheme: dark;
+    --ink:#0f1f1a; --ink-rgb:15,31,26;
+    --paternal:#c0475a; --maternal:#38a39c;
+    --tbtn-hover:rgba(44,70,60,0.95);
+
+    --card-bg:#3a352f; --card-ink:#efe8d8; --card-rel:#b8aa8b; --card-meta:#d3cbb9;
+    --card-job:#c0b7a3; --card-rule:rgba(255,255,255,0.13); --card-dead-bg:#302c27; --card-dead-opacity:.82;
+    --card-shadow:0 6px 20px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05);
+    --card-shadow-hover:0 10px 26px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.08);
+
+    --overlay:rgba(0,0,0,0.7);
+    --modal-bg:#2f2b26; --modal-ink:#ece4d3; --modal-title:#f4eddc; --modal-muted:#b8aa8b;
+    --modal-label:#cdbf9c; --modal-rule:#4d463c; --modal-body:#cdbf9c; --modal-notes:#c0b7a3;
+    --field-bg:#211f1b; --field-border:#53493d; --field-ink:#ece4d3; --placeholder:#8c826d;
+    --btn2-bg:#443e35; --btn2-ink:#ece4d3;
+    --btn1-bg:#e4c974; --btn1-ink:#1a1710;
+    --menu-bg:#2f2b26; --menu-ink:#ece4d3; --menu-hover:rgba(255,255,255,0.08);
+    --error:#f08a97;
+  }
+  :root{
     --ui:'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
     --sat:env(safe-area-inset-top,0px);
     --sar:env(safe-area-inset-right,0px);
     --sab:env(safe-area-inset-bottom,0px);
     --sal:env(safe-area-inset-left,0px);
   }
-  :root{ color-scheme:only light; }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{height:100%; margin:0; -webkit-text-size-adjust:100%; overscroll-behavior:none;}
   body{
@@ -37,20 +84,21 @@
   }
   button{ font-family:var(--ui); touch-action:manipulation; }
   :focus-visible{ outline:2px solid var(--gold-soft); outline-offset:2px; }
+  ::placeholder{ color:var(--placeholder); opacity:1; }
 
   /* ---------- header ---------- */
   header{
     position:fixed; top:0; left:0; right:0; z-index:20;
     display:flex; align-items:center; justify-content:space-between; gap:10px;
     padding: calc(12px + var(--sat)) calc(16px + var(--sar)) 22px calc(16px + var(--sal));
-    background:linear-gradient(180deg, rgba(19,40,33,0.97) 55%, rgba(19,40,33,0));
+    background:linear-gradient(180deg, rgba(var(--ink-rgb),0.97) 55%, rgba(var(--ink-rgb),0));
     pointer-events:none;
   }
   header > *{ pointer-events:auto; }
   .title{ font-size:1.25rem; letter-spacing:0.03em; color:var(--gold-soft); line-height:1.1; }
   .title small{
     display:block; font-family:var(--ui); font-size:0.52rem;
-    letter-spacing:0.14em; text-transform:uppercase; color:#a9b8ab; margin-top:4px;
+    letter-spacing:0.14em; text-transform:uppercase; color:var(--muted); margin-top:4px;
   }
   .actions{ display:flex; gap:8px; align-items:center; }
 
@@ -59,25 +107,25 @@
     min-height:40px; padding:0 14px; font-size:0.86rem; line-height:1;
     border-radius:6px; cursor:pointer;
     border:1px solid rgba(228,201,116,0.4);
-    background:rgba(19,40,33,0.88); color:var(--gold-soft);
+    background:rgba(var(--ink-rgb),0.88); color:var(--gold-soft);
   }
-  .tbtn:hover{ background:rgba(40,70,58,0.95); border-color:var(--gold); }
-  .tbtn.primary{ background:var(--gold-soft); color:var(--ink); border-color:var(--gold-soft); font-weight:600; }
-  .tbtn.primary:hover{ background:#efd98f; }
+  .tbtn:hover{ background:var(--tbtn-hover); border-color:var(--gold); }
+  .tbtn.primary{ background:var(--gold-soft); color:#132821; border-color:var(--gold-soft); font-weight:600; }
+  .tbtn.primary:hover{ background:var(--gold-hover); }
   .tbtn.icon{ width:40px; padding:0; font-size:1.2rem; }
 
   .menu-wrap{ position:relative; }
   .menu{
     position:absolute; right:0; top:46px; min-width:240px;
-    background:var(--paper); color:var(--ink); border-radius:8px; padding:6px;
+    background:var(--menu-bg); color:var(--menu-ink); border-radius:8px; padding:6px;
     box-shadow:0 14px 40px rgba(0,0,0,0.5); font-family:var(--ui);
   }
   .menu[hidden]{ display:none; }
   .menu button{
     display:block; width:100%; text-align:left; min-height:44px; padding:0 12px;
-    border:none; background:transparent; color:var(--ink); font-size:0.92rem; border-radius:5px; cursor:pointer;
+    border:none; background:transparent; color:var(--menu-ink); font-size:0.92rem; border-radius:5px; cursor:pointer;
   }
-  .menu button:hover{ background:rgba(0,0,0,0.07); }
+  .menu button:hover{ background:var(--menu-hover); }
   .menu button[hidden]{ display:none; }
 
   /* ---------- canvas ---------- */
@@ -88,14 +136,14 @@
 
   .card{
     position:absolute; width:190px;
-    background: var(--paper); color: var(--ink);
+    background: var(--card-bg); color: var(--card-ink);
     border-radius:3px; padding:13px 15px 11px;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.35), 0 0 0 1px rgba(0,0,0,0.06);
+    box-shadow: var(--card-shadow);
     cursor: pointer; user-select:none; -webkit-user-select:none; touch-action:none;
     border-top:4px solid var(--direct);
     transition: box-shadow .15s;
   }
-  .card:hover{ box-shadow: 0 10px 26px rgba(0,0,0,0.45), 0 0 0 1px rgba(0,0,0,0.06); }
+  .card:hover{ box-shadow: var(--card-shadow-hover); }
   .card:focus-visible{ outline:3px solid var(--gold-soft); outline-offset:3px; }
   .card.nat-italian{ border-top-color: var(--paternal); }
   .card.nat-hungarian{ border-top-color: var(--maternal); }
@@ -104,11 +152,11 @@
     border-image: linear-gradient(to right, var(--paternal) 50%, var(--maternal) 50%) 1;
   }
   .card.you{ box-shadow: 0 0 0 2px var(--gold), 0 8px 24px rgba(0,0,0,0.4); }
-  .card.deceased{ opacity:0.72; background:#e4dcc8; }
+  .card.deceased{ opacity:var(--card-dead-opacity); background:var(--card-dead-bg); }
   .card .name{ font-size:1.05em; font-weight:700; line-height:1.25; margin-bottom:3px; }
-  .card .rel{ font-family:var(--ui); font-size:0.64em; text-transform:uppercase; letter-spacing:0.07em; color:#6b5c3d; margin-bottom:7px;}
-  .card .meta{ font-family:var(--ui); font-size:0.76em; color:#3a3a3a; line-height:1.5;}
-  .card .job{ display:block; margin-top:6px; padding-top:6px; border-top:1px solid rgba(0,0,0,0.1); font-style:italic; color:#555; }
+  .card .rel{ font-family:var(--ui); font-size:0.64em; text-transform:uppercase; letter-spacing:0.07em; color:var(--card-rel); margin-bottom:7px;}
+  .card .meta{ font-family:var(--ui); font-size:0.76em; color:var(--card-meta); line-height:1.5;}
+  .card .job{ display:block; margin-top:6px; padding-top:6px; border-top:1px solid var(--card-rule); font-style:italic; color:var(--card-job); }
 
   /* ---------- floating UI ---------- */
   .dock{
@@ -116,12 +164,17 @@
     display:flex; flex-direction:column; gap:8px;
   }
   .dock .tbtn{ width:44px; height:44px; min-height:44px; padding:0; font-size:1.35rem; }
+  .dock .theme-gap{ margin-bottom:6px; }
+  #themeBtn svg{ width:20px; height:20px; display:block; }
+  #themeBtn .ic-sun{ display:none; }
+  :root[data-theme="dark"] #themeBtn .ic-sun{ display:block; }
+  :root[data-theme="dark"] #themeBtn .ic-moon{ display:none; }
 
   .legend{
     position:fixed; left:calc(14px + var(--sal)); bottom:calc(14px + var(--sab)); z-index:20;
     display:flex; gap:6px 14px; align-items:center; flex-wrap:wrap;
     font-family:var(--ui); font-size:0.76rem;
-    background: rgba(19,40,33,0.9); padding:9px 12px; border-radius:6px;
+    background: rgba(var(--ink-rgb),0.9); padding:9px 12px; border-radius:6px;
     border:1px solid rgba(228,201,116,0.2);
     max-width:calc(100vw - 100px - var(--sal) - var(--sar));
   }
@@ -133,7 +186,7 @@
     bottom:calc(86px + var(--sab));
     width:min(92vw, 360px); text-align:center;
     font-family:var(--ui); font-size:0.8rem; color: rgba(239,230,211,0.85);
-    background: rgba(19,40,33,0.94); padding:10px 14px; border-radius:6px;
+    background: rgba(var(--ink-rgb),0.94); padding:10px 14px; border-radius:6px;
     border:1px solid rgba(228,201,116,0.25); line-height:1.5;
     transition:opacity .4s; pointer-events:none;
   }
@@ -141,41 +194,41 @@
 
   /* ---------- dialogs ---------- */
   .overlay{
-    position:fixed; inset:0; background:rgba(8,16,13,0.78); z-index:100;
+    position:fixed; inset:0; background:var(--overlay); z-index:100;
     display:none; overflow-y:auto; padding:24px 16px; overscroll-behavior:contain;
   }
   .overlay.open{ display:flex; }
   .modal{
-    margin:auto; background: var(--paper); color:var(--ink); border-radius:8px;
+    margin:auto; background: var(--modal-bg); color:var(--modal-ink); border-radius:8px;
     width:100%; max-width:400px; padding:24px 24px 20px;
     box-shadow:0 20px 60px rgba(0,0,0,0.5);
     font-family:var(--ui);
   }
   .modal:focus{ outline:none; }
-  .modal h2{ font-family:Georgia, serif; font-size:1.3rem; margin:0 0 4px; color:#2b2010; }
-  .modal .sub{ font-size:0.78rem; color:#6b5c3d; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:16px; border-bottom:2px solid var(--gold); padding-bottom:12px; }
-  .modal .lead{ font-size:0.85rem; color:#5a4d30; margin:8px 0 14px; line-height:1.5; }
+  .modal h2{ font-family:Georgia, serif; font-size:1.3rem; margin:0 0 4px; color:var(--modal-title); }
+  .modal .sub{ font-size:0.78rem; color:var(--modal-muted); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:16px; border-bottom:2px solid var(--gold); padding-bottom:12px; }
+  .modal .lead{ font-size:0.85rem; color:var(--modal-body); margin:8px 0 14px; line-height:1.5; }
   .modal .row{ margin-bottom:10px; font-size:0.95rem; line-height:1.5; }
-  .modal .row b{ color:#5a4d30; }
+  .modal .row b{ color:var(--modal-label); }
   .modal .row.rel-line{ margin:0 0 6px 8px; }
-  .modal .notes{ margin-top:10px; padding-top:10px; border-top:1px solid #d8cca8; font-style:italic; color:#555; font-size:0.9rem; }
+  .modal .notes{ margin-top:10px; padding-top:10px; border-top:1px solid var(--modal-rule); font-style:italic; color:var(--modal-notes); font-size:0.9rem; }
   .modal-actions{ display:flex; gap:8px; margin-top:16px; }
   .modal-actions .btn{ flex:1; padding:0 10px; }
   .modal-actions .btn-secondary:first-child{ flex:1.3; }
   .btn{ font-size:0.92rem; min-height:44px; padding:0 16px; border-radius:6px; border:none; cursor:pointer; font-weight:600; }
-  .btn-primary{ background: var(--ink); color: var(--gold-soft); }
-  .btn-secondary{ background:#e2d8bd; color:#3a3020; }
+  .btn-primary{ background: var(--btn1-bg); color: var(--btn1-ink); }
+  .btn-secondary{ background:var(--btn2-bg); color:var(--btn2-ink); }
   .btn:hover{ opacity:0.9; }
-  .form-error{ color:#8b2635; font-size:0.85rem; margin-top:10px; min-height:1.2em; }
+  .form-error{ color:var(--error); font-size:0.85rem; margin-top:10px; min-height:1.2em; }
   .import-textarea{
     width:100%; height:220px; font-family:monospace; font-size:16px; padding:10px;
-    border:1.5px solid #cfc3a3; border-radius:4px; background:#fbf7ee; color:#1c1c1c;
+    border:1.5px solid var(--field-border); border-radius:4px; background:var(--field-bg); color:var(--field-ink);
   }
   .field{ margin-bottom:12px; }
-  .field label{ display:block; font-size:0.78rem; font-weight:600; color:#5a4d30; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.03em; }
+  .field label{ display:block; font-size:0.78rem; font-weight:600; color:var(--modal-label); margin-bottom:4px; text-transform:uppercase; letter-spacing:0.03em; }
   .field input, .field select, .field textarea{
-    width:100%; min-height:44px; padding:8px 10px; border:1.5px solid #cfc3a3; border-radius:4px;
-    font-family:var(--ui); font-size:16px; background:#fbf7ee; color:#1c1c1c;
+    width:100%; min-height:44px; padding:8px 10px; border:1.5px solid var(--field-border); border-radius:4px;
+    font-family:var(--ui); font-size:16px; background:var(--field-bg); color:var(--field-ink);
   }
   .field textarea{ resize:vertical; min-height:90px; }
 
@@ -223,6 +276,10 @@
 </div>
 
 <div class="dock">
+  <button class="tbtn theme-gap" id="themeBtn" aria-label="Váltás sötét módra" title="Sötét / világos mód">
+    <svg class="ic-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+    <svg class="ic-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.3M12 19.2v2.3M2.5 12h2.3M19.2 12h2.3M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M18.7 5.3l-1.6 1.6M6.9 17.1l-1.6 1.6"/></svg>
+  </button>
   <button class="tbtn" id="zoomInBtn" aria-label="Nagyítás">+</button>
   <button class="tbtn" id="zoomOutBtn" aria-label="Kicsinyítés">−</button>
   <button class="tbtn" id="fitBtn" aria-label="Az egész családfa áttekintése" title="Áttekintés">⤢</button>
@@ -255,7 +312,7 @@
     <p class="lead">Ez megnyitja az email appodat az adatokkal előre beírva.</p>
     <div class="field">
       <label for="sg_person">Személy</label>
-      <input type="text" id="sg_person" placeholder="pl. Franco Bottoni, vagy egy új személy neve" autocomplete="off">
+      <input type="text" id="sg_person" placeholder="pl. Franco Bottoni vagy új személy" autocomplete="off">
     </div>
     <div class="field">
       <label for="sg_type">Milyen módosítás?</label>
@@ -3542,6 +3599,33 @@ document.getElementById('fitBtn').onclick = () => { markMoved(); fitView(); };
 
 // Keep the tree framed on rotate/resize until the person starts navigating.
 window.addEventListener('resize', () => { if(!userMoved){ MIN_SCALE = Math.min(0.12, fitScale()*0.9); startView(); } });
+
+// ============================================================
+// THEME (light / dark). Follows the system until the person picks one; the choice is remembered
+// where the browser allows it.
+// ============================================================
+const themeBtn = document.getElementById('themeBtn');
+const themeMeta = document.querySelector('meta[name="theme-color"]');
+function currentTheme(){ return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'; }
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme', t);
+  if(themeMeta) themeMeta.setAttribute('content', t === 'dark' ? '#0f1f1a' : '#132821');
+  const csMeta = document.querySelector('meta[name="color-scheme"]');
+  if(csMeta) csMeta.setAttribute('content', t === 'dark' ? 'dark' : 'only light');
+  themeBtn.setAttribute('aria-label', t === 'dark' ? 'Váltás világos módra' : 'Váltás sötét módra');
+}
+function savedTheme(){ try{ const v = localStorage.getItem('csaladfa-theme'); return (v === 'light' || v === 'dark') ? v : null; }catch(e){ return null; } }
+themeBtn.onclick = () => {
+  const next = currentTheme() === 'dark' ? 'light' : 'dark';
+  applyTheme(next);
+  try{ localStorage.setItem('csaladfa-theme', next); }catch(e){}
+};
+if(window.matchMedia){
+  const mq = matchMedia('(prefers-color-scheme: dark)');
+  const onSystemChange = (e) => { if(!savedTheme()) applyTheme(e.matches ? 'dark' : 'light'); };
+  if(mq.addEventListener) mq.addEventListener('change', onSystemChange); else if(mq.addListener) mq.addListener(onSystemChange);
+}
+applyTheme(currentTheme());
 
 render();
 startView();
